@@ -63,6 +63,19 @@ data:
   # Optional: Elasticsearch JVM options. For heavy load environments this will override the defaults
   elasticsearch.jvm.options: ""
   ####################################
+  ########## KAFKA #########
+  ####################################
+  # Optional: Kafka enabled. If this option is enabled, then it is recommended to enable kafka.rollups service
+  kafka.enabled: "false"
+  # Required only if kafka.enabled is set to "true". Comma separated list of kafka broker hosts
+  kafka.hosts: 127.0.0.1:9092
+  # Optional: Enable data rollups through kafka
+  kafka.rollups.enabled: "false"
+  # Required only if kafka.enabled is set to "true". Replication factor to use for kafka topics
+  streamsnap.topic.replication.factor: 1
+  # Required only if kafka.enabled is set to "true". Number of acks producers will expect for writes
+  streamsnap.topic.acks: "1"
+  ####################################
   ######### SMTP #########
   ####################################
   # Optional: SMTP server address, needed for Sysdig Cloud to send email notifications
@@ -111,6 +124,8 @@ data:
   sysdigcloud.jvm.api.options: ""
   sysdigcloud.jvm.worker.options: ""
   sysdigcloud.jvm.collector.options: ""
+  sysdigcloud.jvm.streamsnap.options: ""
+  sysdigcloud.jvm.fastpathAggregator.options: ""
   # Required: Sysdig Cloud license
   sysdigcloud.license: ""
   # Optional: OAuth allowed domains (comma separated list of domains)
