@@ -72,7 +72,7 @@ data:
   # Optional: Enable data rollups through kafka
   kafka.rollups.enabled: "false"
   # Required only if kafka.enabled is set to "true". Replication factor to use for kafka topics
-  streamsnap.topic.replication.factor: 1
+  streamsnap.topic.replication.factor: "1"
   # Required only if kafka.enabled is set to "true". Number of acks producers will expect for writes
   streamsnap.topic.acks: "1"
   ####################################
