@@ -29,7 +29,7 @@ spec:
             #  mountPath: /opt/kubernets_secrets
           env:
             - name: ROLES
-              value: worker-streamsnap
+              value: streamsnap
             - name: LOG_ROLE
               value: streamsnap
             - name: LOG_TO_STDOUT
