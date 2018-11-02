@@ -2,7 +2,7 @@
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
-  name: sysdigcloud-fastpathAggregator
+  name: sysdigcloud-fastpath-aggregator
 spec:
   replicas: 1
   template:
@@ -12,7 +12,7 @@ spec:
         role: fastpathAggregator
     spec:
       containers:
-        - name: fastpathAggregator
+        - name: fastpath-aggregator
           image: quay.io/sysdig/sysdigcloud-backend:1212
           volumeMounts:
             - name: logs
