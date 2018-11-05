@@ -29,7 +29,7 @@ spec:
             #  mountPath: /opt/kubernets_secrets
           env:
             - name: ROLES
-              value: fastpathAggregator
+              value: fastpathAggregator,streamsnapCompletions
             - name: LOG_ROLE
               value: fastpathAggregator
             - name: LOG_TO_STDOUT
