@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: zk-config
+data:
+  client.cnxns: "60"
+  ensemble: sysdigcloud-zookeeper-0
+  init: "10"
+  jvm.heap: 2G
+  purge.interval: "1"
+  snap.retain: "3"
+  sync: "5"
+  tick: "2000"

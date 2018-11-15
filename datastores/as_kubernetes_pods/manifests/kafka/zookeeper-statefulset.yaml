@@ -1,0 +1,127 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: sysdigcloud
+    role: zookeeper
+  name: sysdigcloud-zookeeper
+spec:
+  podManagementPolicy: OrderedReady
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: sysdigcloud
+      role: zookeeper
+  serviceName: sysdigcloud-zookeeper
+  template:
+    metadata:
+      annotations:
+        pod.alpha.kubernetes.io/initialized: "true"
+      labels:
+        app: sysdigcloud
+        role: zookeeper
+    spec:
+      containers:
+      - command:
+        - sh
+        - -c
+        - zkGenConfig.sh && zkServer.sh start-foreground
+        env:
+        - name: ZK_ENSEMBLE
+          valueFrom:
+            configMapKeyRef:
+              key: ensemble
+              name: zk-config
+        - name: ZK_HEAP_SIZE
+          valueFrom:
+            configMapKeyRef:
+              key: jvm.heap
+              name: zk-config
+        - name: ZK_TICK_TIME
+          valueFrom:
+            configMapKeyRef:
+              key: tick
+              name: zk-config
+        - name: ZK_INIT_LIMIT
+          valueFrom:
+            configMapKeyRef:
+              key: init
+              name: zk-config
+        - name: ZK_SYNC_LIMIT
+          valueFrom:
+            configMapKeyRef:
+              key: tick
+              name: zk-config
+        - name: ZK_MAX_CLIENT_CNXNS
+          valueFrom:
+            configMapKeyRef:
+              key: client.cnxns
+              name: zk-config
+        - name: ZK_SNAP_RETAIN_COUNT
+          valueFrom:
+            configMapKeyRef:
+              key: snap.retain
+              name: zk-config
+        - name: ZK_PURGE_INTERVAL
+          valueFrom:
+            configMapKeyRef:
+              key: purge.interval
+              name: zk-config
+        - name: ZK_CLIENT_PORT
+          value: "2181"
+        - name: ZK_SERVER_PORT
+          value: "2888"
+        - name: ZK_ELECTION_PORT
+          value: "3888"
+        image: quay.io/sysdig/zookeeper:v2.0
+        imagePullPolicy: Always
+        livenessProbe:
+          exec:
+            command:
+            - zkOk.sh
+          failureThreshold: 3
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 5
+        name: zookeeper
+        ports:
+        - containerPort: 2181
+          name: client
+          protocol: TCP
+        - containerPort: 2888
+          name: server
+          protocol: TCP
+        - containerPort: 3888
+          name: leader-election
+          protocol: TCP
+        readinessProbe:
+          exec:
+            command:
+            - zkOk.sh
+          failureThreshold: 3
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 5
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /var/lib/zookeeper
+          name: datadir
+      dnsPolicy: ClusterFirst
+      imagePullSecrets:
+      - name: sysdigcloud-pull-secret
+      volumes:
+      - name: datadir
+        emptyDir: {}
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext:
+        fsGroup: 1000
+        runAsUser: 1000
+      terminationGracePeriodSeconds: 30
+  updateStrategy:
+    type: OnDelete
