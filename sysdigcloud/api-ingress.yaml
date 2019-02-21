@@ -5,6 +5,7 @@ metadata:
   annotations:
     ingress.kubernetes.io/affinity: cookie
     ingress.kubernetes.io/session-cookie-name: INGRESSCOOKIEAPI
+    ingress.kubernetes.io/ssl-passthrough: "true"
   labels:
     app.kubernetes.io/managed-by: ingress-config
     app.kubernetes.io/name: ingress-config
@@ -21,14 +22,6 @@ spec:
               serviceName: sysdigcloud-api
               servicePort: 443
             path: /
-          - backend:
-              serviceName: sysdigcloud-api
-              servicePort: 443
-            path: /api
-          - backend:
-              serviceName: sysdigcloud-api
-              servicePort: 443
-            path: /ui
   tls:
     - hosts:
         - <EXTERNAL-DNS-NAME>
