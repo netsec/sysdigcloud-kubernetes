@@ -31,7 +31,7 @@ spec:
                 #- cassandra
             #topologyKey: "kubernetes.io/hostname"
       containers:
-        - image: quay.io/sysdig/cassandra:2.1.20.13
+        - image: quay.io/sysdig/cassandra:2.1.20.18
           name: cassandra
           env:
             - name: CASSANDRA_SERVICE
@@ -46,11 +46,6 @@ spec:
             # If using multiple directories for data, set the path list
             # - name: CASSANDRA_DATA_DIRS
             #   value: "/var/lib/cassandra/data /var/lib/cassandra/data2"
-            - name: CASSANDRA_COMPACTION_THROUGHPUT
-              valueFrom:
-                configMapKeyRef:
-                  key: cassandra.compaction.throughput
-                  name: sysdigcloud-config
             - name: JVM_EXTRA_OPTS
               valueFrom:
                 configMapKeyRef:
@@ -70,6 +65,11 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
+            - name: CASSANDRA_CUSTOM_OVERRIDES
+              valueFrom:
+                configMapKeyRef:
+                  key: cassandra.custom.overrides
+                  name: sysdigcloud-config
             ### Start of the custom Cassandra snitch group
             # The following entries are required for the custom Cassandra snitch (see configMap)
             # - name: CASSANDRA_ENDPOINT_SNITCH
@@ -102,6 +102,13 @@ spec:
             initialDelaySeconds: 15
             failureThreshold: 10
             timeoutSeconds: 5
+          resources:
+            limits:
+              cpu: "16"
+              memory: 24Gi
+            requests:
+              cpu: "8"
+              memory: 10Gi
           volumeMounts:
             - mountPath: /var/lib/cassandra
               name: data

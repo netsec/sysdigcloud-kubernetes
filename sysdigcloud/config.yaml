@@ -39,12 +39,9 @@ data:
   # Change to 1 only for POC or if running a single node deployment
   cassandra.replication.factor: "3"
   # Optional: Cassandra JVM JVM options. For heavy load environments this will override the defaults
-  cassandra.jvm.options: ""
+  cassandra.jvm.options: "-Xms10G -Xmx10G -Xloggc:/var/log/cassandra/gc.log -XX:NumberOfGCLogFiles=10 -XX:GCLogFileSize=30M -XX:+PrintGCDateStamps -XX:+PrintGCDetails -XX:+UseCondCardMark -XX:+UseGCLogFileRotation"
   # Optional: Store Sysdig captures using Cassandra instead of S3. This increases cassandra storage if set to true
   sysdigcloud.captures.cassandra.storage: "true"
-  # Optional: Increase cassandra compaction throughput to 350 MB/s
-  # if not specified, cassandra compaction throughput is set to 100 MB/s
-  cassandra.compaction.throughput: ""
   # Start Custom Snitch Group ########################################
   # Optional but if used, all values are required
   # If "cassandra.endpoint.snitch" contains "customHostBasedGossipingPropertyFileSnitch", then
@@ -80,6 +77,16 @@ data:
   # Optional but required as a group: datacenter name used for snitch and network topology
   cassandra.datacenter.name: ""
   # End Snitch Group ###########################################
+  # Optional: these values override the default in cassandra.yaml file
+  cassandra.custom.overrides: |
+    hinted_handoff_enabled: false
+    concurrent_writes: 128
+    memtable_flush_writers: 6
+    concurrent_compactors: 6
+    read_request_timeout_in_ms: 10000
+    write_request_timeout_in_ms: 10000
+    phi_convict_threshold: 12
+    compaction_throughput_mb_per_sec: 300
   ####################################
   ######### REDIS #########
   ####################################

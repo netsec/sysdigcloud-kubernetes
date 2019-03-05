@@ -13,7 +13,7 @@ spec:
         role: cassandra
     spec:
       containers:
-        - image: quay.io/sysdig/cassandra:2.1.20.13
+        - image: quay.io/sysdig/cassandra:2.1.20.18
           name: cassandra
           env:
             - name: CASSANDRA_SERVICE
@@ -43,6 +43,18 @@ spec:
                 configMapKeyRef:
                   name: sysdigcloud-config
                   key: cassandra.ssl.enabled
+            - name: CASSANDRA_CUSTOM_OVERRIDES
+              valueFrom:
+                configMapKeyRef:
+                  key: cassandra.custom.overrides
+                  name: sysdigcloud-config
+          resources:
+            limits:
+              cpu: "16"
+              memory: 24Gi
+            requests:
+              cpu: "8"
+              memory: 10Gi
           volumeMounts:
             - mountPath: /var/lib/cassandra
               name: data
