@@ -5,6 +5,6 @@ metadata:
   name: ingress-default-backend
 spec:
   ports:
-    - port: 8080
+  - port: 8080
   selector:
     run: ingress-default-backend
