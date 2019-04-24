@@ -40,6 +40,10 @@ spec:
             # Uncomment this if you want to split sysdgicloud configurations into configs and secrets.
             #- name: secrets
             #  mountPath: /opt/kubernets_secrets
+            #- name: es-certs
+            #  mountPath: /opt/kubernets-secrets/elasticsearch-certs/
+            #- name: es-password
+            #  mountPath: /opt/kubernets-secrets/elasticsearch.password
           env:
             - name: ROLES
               value: collector
@@ -108,6 +112,13 @@ spec:
         - name: ssl
           secret:
             secretName: sysdigcloud-ssl-secret
+        #- name: es-certs
+        #  secret:
+          #  secretName: ca-certs
+          #  defaultMode: 256
+        #- name: es-password
+        #  secret:
+          #  secretName: sg-admin-secret
         # Uncomment this if you need to import self-signed SSL certs
         #- name: java-certs
         #  secret:
