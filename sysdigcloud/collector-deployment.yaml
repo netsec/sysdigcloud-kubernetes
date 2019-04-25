@@ -88,13 +88,13 @@ spec:
             preStop:
               exec:
                 command: ["curl","-v","http://127.0.0.1:9000/api/admin/drain"]
-          resources:
-            limits:
-              cpu: "8"
-              memory: "10Gi"
-            requests:
-              cpu: "2"
-              memory: "5Gi"
+          # resources:
+          #  limits:
+          #    cpu: "8"
+          #    memory: "10Gi"
+          #  requests:
+          #    cpu: "2"
+          #    memory: "5Gi"
       terminationGracePeriodSeconds: 60
       imagePullSecrets:
         - name: sysdigcloud-pull-secret
