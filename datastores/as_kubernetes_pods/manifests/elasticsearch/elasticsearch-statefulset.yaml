@@ -95,14 +95,14 @@ spec:
               #secretKeyRef:
                 #name: sg-admin-secret
                 #key: password
-        # readinessProbe:
-        #   exec:
-        #     command:
-        #       - /bin/bash
-        #       - /readiness_probe.sh
-        #   initialDelaySeconds: 20
-        #   timeoutSeconds: 5
-        #   failureThreshold: 10
+        readinessProbe:
+          exec:
+            command:
+              - /bin/bash
+              - /readiness_probe.sh
+          initialDelaySeconds: 20
+          timeoutSeconds: 5
+          failureThreshold: 10
         volumeMounts:
           - mountPath: /usr/share/elasticsearch/data
             name: data
