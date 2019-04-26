@@ -48,13 +48,13 @@ spec:
           privileged: true
         ## Recommended resource limits for Elasticsearch pods.
         ## Make sure to set values for these limits that are appropriate for your environment.
-        resources:
-          requests:
-            cpu: 2
-            memory: 6Gi
-          limits:
-            cpu: 4
-            memory: 10Gi
+        # resources:
+        #   requests:
+        #     cpu: 2
+        #     memory: 6Gi
+        #   limits:
+        #     cpu: 4
+        #     memory: 10Gi
         env:
           - name: ELASTICSEARCH_SERVICE
             value: sysdigcloud-elasticsearch
