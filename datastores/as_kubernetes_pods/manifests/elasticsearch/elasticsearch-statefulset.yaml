@@ -70,19 +70,57 @@ spec:
               configMapKeyRef:
                 name: sysdigcloud-config
                 key: elasticsearch.jvm.options
+          - name: SEARCHGUARD_ENABLED
+            valueFrom:
+              configMapKeyRef:
+                name: sysdigcloud-config
+                key: elasticsearch.searchguard.enabled
+          - name: ELASTICSEARCH_USER
+            valueFrom:
+              configMapKeyRef:
+                name: sysdigcloud-config
+                key: elasticsearch.user
+          #- name: ADMIN_PASSWORD
+            #valueFrom:
+              #secretKeyRef:
+                #name: sg-admin-secret
+                #key: password
+          #- name: READONLY_PASSWORD
+            #valueFrom:
+              #secretKeyRef:
+                #name: sg-readonly-secret
+                #key: password
+          #- name: SG_PASSWORD
+            #valueFrom:
+              #secretKeyRef:
+                #name: sg-admin-secret
+                #key: password
         readinessProbe:
-          httpGet:
-            path: /_cluster/health
-            port: 9200
+          exec:
+            command:
+              - /bin/bash
+              - /readiness_probe.sh
           initialDelaySeconds: 20
           timeoutSeconds: 5
           failureThreshold: 10
         volumeMounts:
           - mountPath: /usr/share/elasticsearch/data
             name: data
+          #- mountPath: /tmp/elasticsearch-certs/
+            #name: tool-cert
+          #- mountPath: /tmp/sgconfig/
+            #name: sg-config
       imagePullSecrets:
         - name: sysdigcloud-pull-secret
       volumes:
+      #- name: tool-cert
+        #secret:
+          #secretName: ca-certs
+          #defaultMode: 256
+      #- name: sg-config
+        #secret:
+          #secretName: sg-config-files
+          #defaultMode: 256
   volumeClaimTemplates:
     - metadata:
         name: data
