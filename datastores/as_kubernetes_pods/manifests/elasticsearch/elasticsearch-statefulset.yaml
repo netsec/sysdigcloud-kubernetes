@@ -43,7 +43,7 @@ spec:
             topologyKey: kubernetes.io/hostname
       containers:
         - name: elasticsearch
-          image: quay.io/sysdig/elasticsearch:5.6.15.6-alpine
+          image: quay.io/sysdig/elasticsearch:5.1.1
           securityContext:
             privileged: true
           ## Recommended resource limits for Elasticsearch pods.

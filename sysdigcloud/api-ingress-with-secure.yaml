@@ -20,7 +20,7 @@ spec:
         paths:
           - backend:
               serviceName: sysdigcloud-api
-              servicePort: 8080 
+              servicePort: 443 
             path: /
           - backend:
               serviceName: sysdigcloud-scanning-api
