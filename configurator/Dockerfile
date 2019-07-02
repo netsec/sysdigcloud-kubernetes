@@ -1,8 +1,12 @@
 FROM openjdk:13-jdk-alpine
 
-RUN apk add bash python py-pip jq openssl ca-certificates \
+RUN apk add bash python py-pip jq openssl ca-certificates curl \
       && pip install yq \
       && wget https://storage.googleapis.com/kubernetes-helm/helm-v2.14.0-linux-386.tar.gz \
+      && wget https://download.docker.com/linux/static/stable/x86_64/docker-18.09.7.tgz \
+      && tar xvf docker-18.09.7.tgz \
+      && mv docker/docker /usr/bin/ \
+      && rm -rf docker* \
       && tar xvf helm-v2.14.0-linux-386.tar.gz -C /tmp \
       && cp /tmp/linux-386/helm /usr/bin/ \
       && rm helm-v2.14.0-linux-386.tar.gz \

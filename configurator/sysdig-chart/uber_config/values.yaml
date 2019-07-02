@@ -19,7 +19,7 @@ storageClassName: <change-me>
 #this should be updated as adequate
 cloudProvider:
   # example aws
-  name: 
+  name:
   # boolean true|false
   isMultiAZ: false
   # example us-east-1
@@ -38,7 +38,7 @@ sysdig:
   agentCount: 10
   #Set Sysdig license
   license: <change-me>
-  dnsName: <change-me>
+  dnsName: not-a-valid.domain.com
   monitorVersion: 2271
   anchoreVersion: v0.3.4.1
   #Advanced settings

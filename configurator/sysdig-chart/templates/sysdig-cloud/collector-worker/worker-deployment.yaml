@@ -16,9 +16,9 @@ spec:
     spec:
       containers:
         - name: email-renderer
-          image: quay.io/sysdig/sysdigcloud-backend:{{ .Values.sysdig.monitorVersion }}-email-renderer
+          image: {{ .Values.airgapped_registry_name | default "quay.io" }}/sysdig/sysdigcloud-backend:{{ .Values.sysdig.monitorVersion }}-email-renderer
         - name: worker
-          image: quay.io/sysdig/sysdigcloud-backend:{{ .Values.sysdig.monitorVersion }}-allinone-java
+          image: {{ .Values.airgapped_registry_name | default "quay.io" }}/sysdig/sysdigcloud-backend:{{ .Values.sysdig.monitorVersion }}-allinone-java
           volumeMounts:
             - name: logs
               mountPath: /var/log/sysdigcloud

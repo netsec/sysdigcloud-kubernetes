@@ -81,7 +81,7 @@ spec:
     spec:
       containers:
         - name: mysql
-          image: quay.io/sysdig/mysql:5.6.43.2
+          image: {{ .Values.airgapped_registry_name | default "quay.io" }}/sysdig/mysql:5.6.43.2
           env:
             - name: MYSQL_ROOT_PASSWORD
               valueFrom:

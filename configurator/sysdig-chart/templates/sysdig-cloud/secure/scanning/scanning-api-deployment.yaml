@@ -55,7 +55,7 @@ spec:
         - name: sysdigcloud-pull-secret
       containers:
         - name: scanning-api
-          image: quay.io/sysdig/scanning:{{ .Values.sysdig.monitorVersion }}
+          image: {{ .Values.airgapped_registry_name | default "quay.io" }}/sysdig/scanning:{{ .Values.sysdig.monitorVersion }}
           imagePullPolicy: IfNotPresent
           resources:
             {}

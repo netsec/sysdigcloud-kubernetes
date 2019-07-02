@@ -1,45 +1,44 @@
 #defines which scripts needs to be run
 #generate - performs templating & kustomization
 #deploy   - apply's the generated script in k8s environment
-scripts: generate deploy
+scripts: generate
 #defines applications needed. Monitor installed by default.
 #Secure is optional. Remove secure if not.
 apps: monitor secure
 #Size of the cluster. Takes [ small | medium | large ]
 #This defines CPU & Memory & Disk & Replicas
 #Replicas can be overwritten for medium , large in advanced   config section
-size: medium
+size: small
 #Set k8s namespace for sysdigcloud
 namespace: sysdigcloud
 #Set Quay.Io secrets
-quaypullsecret: <change-me>
+quaypullsecret: foo
 #StorageClass config
-storageClassName: <change-me>
+storageClassName: foo
 #This drives multi-az awareness, if sysdigcloud is deployed to a multi-az setup
 #this should be updated as adequate
 cloudProvider:
   # example aws
-  name: 
+  name: aws
   # boolean true|false
   isMultiAZ: false
   # example us-east-1
-  region: ""
+  region: 
 #supports aws | gke | hostPath
 #Do not use hostPath in production, currently it is experimental only.
-storageClassProvisioner: aws
+storageClassProvisioner: hostPath
 #supports openshift | kubernetes defaults to kubernetes install
 deployment: kubernetes
-# uncomment this if an airgapped docker registy will be used.
-#airgapped_registry_name:
-#airgapped_registry_username:
-#airgapped_registry_password:
+airgapped_registry_name: foo.io
+airgapped_registry_username: foo
+airgapped_registry_password: bar
 #Sysdig application config
 sysdig:
   agentCount: 10
   #Set Sysdig license
-  license: <change-me>
-  dnsName: <change-me>
-  monitorVersion: 2271
+  license: foobar
+  dnsName: foo.bar.com
+  monitorVersion: 2304
   anchoreVersion: v0.3.4.1
   #Advanced settings
   #autogenerate certificate by default - generate to
@@ -62,18 +61,16 @@ sysdig:
   anchoreWorkerReplicaCount:
   scanningApiReplicaCount:
   scanningAlertMgrReplicaCount:
-  #set to true for highly available redis
-  redisHa: false
   #SMTP Configurations
-  smtpServer: ""
-  smtpServerPort: "25"
+  smtpServer: foo.smtp.com
+  smtpServerPort: 25
   #User,Password can be empty if the server does not require authentication
-  smtpUser: ""
-  smtpPassword: ""
-  smtpProtocolTLS: "false"
-  smtpProtocolSSL: "false"
+  smtpUser: foo
+  smtpPassword: bar
+  smtpProtocolTLS: false
+  smtpProtocolSSL: false
   #Optional Email Header
-  smtpFromAddress: ""
+  smtpFromAddress: foo@bar.com
   #Please provide openshift parameters
   openshiftUrl:
   openshiftUsername:

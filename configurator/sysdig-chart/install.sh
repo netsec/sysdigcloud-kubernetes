@@ -4,7 +4,7 @@ DIR="$(cd "$(dirname "$0")"; pwd -P)"
 source "$DIR/shared-values.sh"
 
 set -euo pipefail
-. "/sysdig-chart/framework.sh"
+. "${TEMPLATE_DIR}/framework.sh"
 
 if [[ ! -f /manifests/values.yaml ]]; then
   log error "Please provide a values.yaml in your current working directory."
@@ -23,30 +23,34 @@ log info "${SCRIPTS}"
 GENERATE=false
 DEPLOY=false
 
-for script in ${SCRIPTS}
-do
- if [[ ${script} == "generate" ]];
- then
+AIRGAPPED=$(yq -r .airgapped_registry_name /sysdig-chart/values.yaml)
+
+for script in ${SCRIPTS}; do
+ if [[ ${script} == "generate" ]]; then
    GENERATE=true
- elif [[ ${script} == "deploy" ]];
- then
+ elif [[ ${script} == "deploy" ]]; then
    DEPLOY=true
  fi
 done
 
-if [[ ${GENERATE} == "true" ]];
-then
+if [[ "$AIRGAPPED" != "null" ]]; then
+  /sysdig-chart/airgap.sh append_airgap_docker_config
+fi
+
+if [[ ${GENERATE} == "true" ]]; then
   log notice "Generating templates..."
   "$TEMPLATE_DIR/generate_templates.sh"
 fi
 
+if [[ "$AIRGAPPED" != "null" ]]; then
+  "$TEMPLATE_DIR/airgap.sh"
+fi
+
 DEPLOYMENT=$(yq -r .deployment "$TEMPLATE_DIR/values.yaml")
-if [[ ${DEPLOYMENT} == "openshift" ]];
-then
+if [[ ${DEPLOYMENT} == "openshift" ]]; then
   "$TEMPLATE_DIR/openshift.sh"
 fi
 
-if [[ ${DEPLOY} == "true" ]];
-then
+if [[ ${DEPLOY} == "true" ]]; then
   "$TEMPLATE_DIR/deploy.sh"
 fi

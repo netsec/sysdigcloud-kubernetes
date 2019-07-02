@@ -40,7 +40,7 @@ spec:
         #     secretName: sysdigcloud-anchore-custom-certs
       containers:
       - name: anchore-core
-        image: quay.io/sysdig/anchore:{{ .Values.sysdig.anchoreVersion }}
+        image: {{ .Values.airgapped_registry_name | default "quay.io" }}/sysdig/anchore:{{ .Values.sysdig.anchoreVersion }}
         imagePullPolicy:
         resources:
           {}

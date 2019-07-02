@@ -52,6 +52,22 @@ function run_tests() {
   done
 }
 
+function run_uber_tar_tests() {
+  local uber_tar=/manifests/uber_archive.tar.gz
+  if [[ ! -x "$uber_tar" ]]; then
+    log error "$uber_tar has not been generated, please generate before running tests"
+  fi
+  cd /manifests
+  NO_RUN=true "$uber_tar"
+
+  for image in $(yq -r '.spec.template.spec | {containers: .containers[]?}.containers.image' /manifests/generated/*.yaml); do
+    if [[ -z "$(docker images image)" ]]; then
+      log error "Expected uber_tar to have loaded image: '${image}', but it did not"
+      exit 1
+    fi
+  done
+}
+
 function config_gen() {
   for directory in /sysdig-chart/tests/resources/*/; do
     if [[ -d "$directory" ]]; then
@@ -66,6 +82,8 @@ function config_gen() {
 ARG=${1:-}
 if [[ "${ARG}" == "config_gen" ]]; then
   config_gen
+elif [[ "${ARG}" == "uber_tests" ]]; then
+  run_uber_tar_tests
 else
   run_tests
 fi

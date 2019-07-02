@@ -26,7 +26,7 @@ spec:
       terminationGracePeriodSeconds: 10
       containers:
         - name: redis-primary
-          image: quay.io/sysdig/redis:4.0.12.1-alpine-ha
+          image: {{ .Values.airgapped_registry_name | default "quay.io" }}/sysdig/redis:4.0.12.1-alpine-ha
           resources:
             limits:
               cpu: 2

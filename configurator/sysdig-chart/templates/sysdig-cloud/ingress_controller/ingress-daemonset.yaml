@@ -21,7 +21,7 @@ spec:
       serviceAccountName: ingress-controller
       containers:
         - name: haproxy-ingress
-          image: quay.io/sysdig/haproxy-ingress:v0.7-beta.7
+          image: {{ .Values.airgapped_registry_name | default "quay.io" }}/sysdig/haproxy-ingress:v0.7-beta.7
           args:
               - --reload-strategy=multibinder
               - --default-backend-service=$(POD_NAMESPACE)/ingress-default-backend

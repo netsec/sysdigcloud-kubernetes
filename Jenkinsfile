@@ -57,7 +57,7 @@ pipeline {
           script {
               sh(
                 "cd configurator && " +
-                "IMAGE_NAME=${env.ARTIFACTORY_URL}/configurator:${env.BUILD_NUMBER} make test"
+                "IMAGE_NAME=${env.ARTIFACTORY_URL}/configurator:${env.BRANCH_NAME}.${env.BUILD_NUMBER} make test"
               )
           }
         }
@@ -66,8 +66,53 @@ pipeline {
         cleanup {
           withCredentials([string(credentialsId: 'ARTIFACTORY_URL', variable: 'ARTIFACTORY_URL')]) {
             script {
-              sh("docker rmi ${env.ARTIFACTORY_URL}/configurator:${env.BUILD_NUMBER}")
+              sh("docker rmi ${env.ARTIFACTORY_URL}/configurator:${env.BRANCH_NAME}.${env.BUILD_NUMBER}")
             }
+          }
+        }
+      }
+    }
+    stage('Test uber_tar') {
+      steps{
+        script {
+          docker.withRegistry("https://quay.io", "QUAY") {
+            sh(
+              "cd configurator && " +
+              "make test_uber_tar"
+            )
+          }
+        }
+      }
+      post {
+        cleanup {
+          script {
+            sh "docker rmi -f \$(docker images -qa) || /bin/true"
+          }
+        }
+      }
+    }
+    stage('Push uber_tar') {
+      // TODO
+      // This will be guarded with the proper branch before this is merged.
+      steps{
+        withCredentials([
+          string(credentialsId: 'artifactory-api-key', variable: 'ARTIFACTORY_API_KEY'),
+          string(credentialsId: 'ARTIFACTORY_URL', variable: 'ARTIFACTORY_URL')
+        ]) {
+          script {
+            docker.withRegistry("https://quay.io", "QUAY") {
+              sh(
+                "cd configurator && " +
+                "VERSION=${env.BRANCH_NAME}.${env.BUILD_NUMBER} make create_uber_tar push_uber_tar"
+              )
+            }
+          }
+        }
+      }
+      post {
+        cleanup {
+          script {
+            sh("docker rmi -f \$(docker images -qa) || /bin/true")
           }
         }
       }
@@ -79,8 +124,8 @@ pipeline {
       steps{
         withCredentials([string(credentialsId: 'ARTIFACTORY_URL', variable: 'ARTIFACTORY_URL')]) {
           script {
-              dockerImage = docker.build("${env.ARTIFACTORY_URL}/configurator:${env.BUILD_NUMBER}", './configurator/')
-              sh("docker run --rm --entrypoint /sysdig-chart/test.sh ${env.ARTIFACTORY_URL}/configurator:${env.BUILD_NUMBER}")
+              dockerImage = docker.build("${env.ARTIFACTORY_URL}/configurator:${env.BRANCH_NAME}.${env.BUILD_NUMBER}", './configurator/')
+              sh("docker run --rm --entrypoint /sysdig-chart/test.sh ${env.ARTIFACTORY_URL}/configurator:${env.BRANCH_NAME}.${env.BUILD_NUMBER}")
               docker.withRegistry("https://${env.ARTIFACTORY_URL}", registryCredential) {
                 dockerImage.push()
                 dockerImage.push('latest')
@@ -92,14 +137,14 @@ pipeline {
         success {
         withCredentials([string(credentialsId: 'ARTIFACTORY_URL', variable: 'ARTIFACTORY_URL')]) {
             script {
-              slackSendNotification("${env.SLACK_COLOR_GOOD}", "Pushed docker image: ${env.ARTIFACTORY_URL}/configurator:${env.BUILD_NUMBER}")
+              slackSendNotification("${env.SLACK_COLOR_GOOD}", "Pushed docker image: ${env.ARTIFACTORY_URL}/configurator:${env.BRANCH_NAME}.${env.BUILD_NUMBER}")
             }
           }
         }
         cleanup {
         withCredentials([string(credentialsId: 'ARTIFACTORY_URL', variable: 'ARTIFACTORY_URL')]) {
             script {
-              sh("docker rmi ${env.ARTIFACTORY_URL}/configurator:${env.BUILD_NUMBER}")
+              sh("docker rmi ${env.ARTIFACTORY_URL}/configurator:${env.BRANCH_NAME}.${env.BUILD_NUMBER}")
             }
           }
         }

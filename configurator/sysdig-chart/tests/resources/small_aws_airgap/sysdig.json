@@ -1,0 +1,3113 @@
+{
+  "apiVersion": "v1",
+  "data": {
+    "config.yaml": "service_dir: /anchore_service_config\ntmp_dir: \"/tmp\"\nallow_awsecr_iam_auto: false\ncleanup_images: true\nlog_level: INFO\nhost_id: ${ANCHORE_POD_NAME}\ninternal_ssl_verify: false\nmetrics:\n  enabled: false\nfeeds:\n  selective_sync:\n    enabled: True\n    feeds:\n      vulnerabilities: True\n      nvd: True\n      packages: False\ndefault_admin_password: ${ANCHORE_ADMIN_PASSWORD}\ndefault_admin_email: 'admin@myemail.com'\ncredentials:\n  database:\n    db_connect: \"postgresql+pg8000://${ANCHORE_DB_USER}:${ANCHORE_DB_PASSWORD}@${ANCHORE_DB_ENDPOINT}/${ANCHORE_DB}\"\n    db_connect_args:\n      timeout: 120\n      ssl: false\n    db_pool_size: 30\n    db_pool_max_overflow: 30\nservices:\n  apiext:\n    enabled: True\n    require_auth: True\n    endpoint_hostname: sysdigcloud-anchore-core\n    listen: '0.0.0.0'\n    port: 8228\n  kubernetes_webhook:\n    enabled: True\n    require_auth: False\n    endpoint_hostname: sysdigcloud-anchore-core\n    listen: '0.0.0.0'\n    port: 8338\n  catalog:\n    enabled: True\n    require_auth: True\n    endpoint_hostname: sysdigcloud-anchore-core\n    listen: '0.0.0.0'\n    port: 8082\n    use_db: True\n    cycle_timer_seconds: 1\n    cycle_timers:\n      analyzer_queue: 1\n      feed_sync: 14400\n      image_watcher: 3600\n      notifications: 30\n      policy_bundle_sync: 300\n      policy_eval: 3600\n      service_watcher: 15\n\n    event_log:\n      notification:\n        enabled: false\n        level:\n          - error\n    archive:\n      compression:\n        enabled: true\n        min_size_kbytes: 100\n      storage_driver:\n        name: db\n        config: {}\n  simplequeue:\n    enabled: True\n    require_auth: True\n    endpoint_hostname: sysdigcloud-anchore-core\n    listen: '0.0.0.0'\n    port: 8083\n  policy_engine:\n    enabled: True\n    require_auth: True\n    endpoint_hostname: sysdigcloud-anchore-core\n    listen: '0.0.0.0'\n    port: 8087\n"
+  },
+  "kind": "ConfigMap",
+  "metadata": {
+    "labels": {
+      "app": "sysdigcloud",
+      "role": "anchore-core"
+    },
+    "name": "sysdigcloud-anchore-core",
+    "namespace": "sysdigcloud"
+  }
+}
+{
+  "apiVersion": "v1",
+  "kind": "Service",
+  "metadata": {
+    "labels": {
+      "app": "sysdigcloud",
+      "role": "anchore-core"
+    },
+    "name": "sysdigcloud-anchore-core",
+    "namespace": "sysdigcloud"
+  },
+  "spec": {
+    "ports": [
+      {
+        "name": "anchore-external-api",
+        "port": 8228,
+        "protocol": "TCP",
+        "targetPort": 8228
+      },
+      {
+        "name": "anchore-kubewebhook",
+        "port": 8338,
+        "protocol": "TCP",
+        "targetPort": 8338
+      },
+      {
+        "name": "anchore-queue",
+        "port": 8083,
+        "protocol": "TCP",
+        "targetPort": 8083
+      },
+      {
+        "name": "anchore-catalog",
+        "port": 8082,
+        "protocol": "TCP",
+        "targetPort": 8082
+      },
+      {
+        "name": "anchore-policy",
+        "port": 8087,
+        "protocol": "TCP",
+        "targetPort": 8087
+      }
+    ],
+    "selector": {
+      "app": "sysdigcloud",
+      "role": "anchore-core"
+    },
+    "type": "ClusterIP"
+  }
+}
+{
+  "apiVersion": "v1",
+  "kind": "ConfigMap",
+  "metadata": {
+    "labels": {
+      "app": "sysdigcloud",
+      "role": "anchore-worker"
+    },
+    "name": "sysdigcloud-anchore-worker",
+    "namespace": "sysdigcloud"
+  },
+  "spec": {
+    "replicas": 1,
+    "revisionHistoryLimit": 2,
+    "selector": {
+      "matchLabels": {
+        "app": "sysdigcloud",
+        "role": "anchore-core"
+      }
+    },
+    "template": {
+      "metadata": {
+        "labels": {
+          "app": "sysdigcloud",
+          "role": "anchore-core"
+        }
+      },
+      "spec": {
+        "containers": [
+          {
+            "env": [
+              {
+                "name": "ANCHORE_DB",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "anchore.db.dbname",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "ANCHORE_DB_ENDPOINT",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "anchore.db.endpoint",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "ANCHORE_DB_USER",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "anchore.db.user",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "ANCHORE_DB_PASSWORD",
+                "valueFrom": {
+                  "secretKeyRef": {
+                    "key": "anchore.db.password",
+                    "name": "sysdigcloud-anchore"
+                  }
+                }
+              },
+              {
+                "name": "ANCHORE_IO_USER",
+                "value": ""
+              },
+              {
+                "name": "ANCHORE_IO_PASSWORD",
+                "value": ""
+              },
+              {
+                "name": "ANCHORE_ADMIN_PASSWORD",
+                "valueFrom": {
+                  "secretKeyRef": {
+                    "key": "anchore.admin.password",
+                    "name": "sysdigcloud-anchore"
+                  }
+                }
+              },
+              {
+                "name": "ANCHORE_POD_NAME",
+                "valueFrom": {
+                  "fieldRef": {
+                    "fieldPath": "metadata.name"
+                  }
+                }
+              },
+              {
+                "name": "ANCHORE_POD_NAMESPACE",
+                "valueFrom": {
+                  "fieldRef": {
+                    "fieldPath": "metadata.namespace"
+                  }
+                }
+              },
+              {
+                "name": "ANCHORE_POLICY_ENGINE_EVALUATION_CACHE_ENABLED",
+                "value": "false"
+              },
+              {
+                "name": "ANCHORE_POD_IP",
+                "valueFrom": {
+                  "fieldRef": {
+                    "fieldPath": "status.podIP"
+                  }
+                }
+              }
+            ],
+            "image": "foo.io/sysdig/anchore:v0.3.4.1",
+            "imagePullPolicy": null,
+            "livenessProbe": {
+              "failureThreshold": 10,
+              "httpGet": {
+                "path": "/health",
+                "port": "external-api"
+              },
+              "initialDelaySeconds": 60,
+              "periodSeconds": 30,
+              "timeoutSeconds": 10
+            },
+            "name": "anchore-core",
+            "ports": [
+              {
+                "containerPort": 8228,
+                "name": "external-api"
+              },
+              {
+                "containerPort": 8083,
+                "name": "queue-service"
+              },
+              {
+                "containerPort": 8338,
+                "name": "webhook-service"
+              },
+              {
+                "containerPort": 8082,
+                "name": "catalog"
+              },
+              {
+                "containerPort": 8087,
+                "name": "policy-engine"
+              }
+            ],
+            "readinessProbe": {
+              "failureThreshold": 10,
+              "httpGet": {
+                "path": "/health",
+                "port": "external-api"
+              },
+              "initialDelaySeconds": 60,
+              "periodSeconds": 10,
+              "timeoutSeconds": 10
+            },
+            "resources": {
+              "limits": {
+                "cpu": 4,
+                "memory": "4Gi"
+              },
+              "requests": {
+                "cpu": "500m",
+                "memory": "1Gi"
+              }
+            },
+            "volumeMounts": [
+              {
+                "mountPath": "/config",
+                "name": "config-volume"
+              }
+            ]
+          }
+        ],
+        "imagePullSecrets": [
+          {
+            "name": "sysdigcloud-pull-secret"
+          }
+        ],
+        "volumes": [
+          {
+            "configMap": {
+              "name": "sysdigcloud-anchore-core"
+            },
+            "name": "config-volume"
+          }
+        ]
+      }
+    }
+  },
+  "data": {
+    "config.yaml": "service_dir: /anchore_service_config\ntmp_dir: /analysis_scratch\nallow_awsecr_iam_auto: false\ncleanup_images: true\nlog_level: INFO\nhost_id: ${ANCHORE_POD_NAME}\ninternal_ssl_verify: false\nmetrics:\n  enabled: false\ndefault_admin_password: ${ANCHORE_ADMIN_PASSWORD}\ndefault_admin_email: 'admin@myemail.com'\ncredentials:\n  database:\n    db_connect: \"postgresql+pg8000://${ANCHORE_DB_USER}:${ANCHORE_DB_PASSWORD}@${ANCHORE_DB_ENDPOINT}/${ANCHORE_DB}\"\n    db_connect_args:\n      timeout: 120\n      ssl: false\n    db_pool_size: 30\n    db_pool_max_overflow: 30\nservices:\n  analyzer:\n    enabled: true\n    endpoint_hostname: ${ANCHORE_POD_IP}\n    listen: '0.0.0.0'\n    port: 8084\n    cycle_timer_seconds: 1\n    max_threads: 1\n    analyzer_driver: nodocker\n"
+  }
+}
+{
+  "apiVersion": "v1",
+  "kind": "Service",
+  "metadata": {
+    "labels": {
+      "app": "sysdigcloud",
+      "role": "api"
+    },
+    "name": "sysdigcloud-api",
+    "namespace": "sysdigcloud"
+  },
+  "spec": {
+    "clusterIP": "None",
+    "ports": [
+      {
+        "name": "secure-api",
+        "port": 443,
+        "targetPort": 443
+      },
+      {
+        "name": "api",
+        "port": 8080,
+        "targetPort": 8080
+      }
+    ],
+    "selector": {
+      "app": "sysdigcloud",
+      "role": "api"
+    }
+  }
+}
+{
+  "apiVersion": "extensions/v1beta1",
+  "kind": "Deployment",
+  "metadata": {
+    "name": "sysdigcloud-api",
+    "namespace": "sysdigcloud"
+  },
+  "spec": {
+    "replicas": 1,
+    "template": {
+      "metadata": {
+        "annotations": {
+          "version": "2304"
+        },
+        "labels": {
+          "app": "sysdigcloud",
+          "role": "api"
+        }
+      },
+      "spec": {
+        "affinity": {
+          "podAntiAffinity": {
+            "preferredDuringSchedulingIgnoredDuringExecution": [
+              {
+                "podAffinityTerm": {
+                  "labelSelector": {
+                    "matchExpressions": [
+                      {
+                        "key": "app",
+                        "operator": "In",
+                        "values": [
+                          "sysdigcloud"
+                        ]
+                      },
+                      {
+                        "key": "role",
+                        "operator": "In",
+                        "values": [
+                          "api"
+                        ]
+                      }
+                    ]
+                  },
+                  "topologyKey": "kubernetes.io/hostname"
+                },
+                "weight": 100
+              }
+            ]
+          }
+        },
+        "containers": [
+          {
+            "image": "foo.io/sysdig/sysdigcloud-backend:2304-email-renderer",
+            "name": "email-renderer"
+          },
+          {
+            "env": [
+              {
+                "name": "LOG_ROLE",
+                "value": "api"
+              },
+              {
+                "name": "API_ENDPOINT",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "api.url",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              }
+            ],
+            "image": "foo.io/sysdig/sysdigcloud-backend:2304-nginx",
+            "imagePullPolicy": "IfNotPresent",
+            "name": "nginx",
+            "volumeMounts": [
+              {
+                "mountPath": "/opt/certs/",
+                "name": "ssl"
+              },
+              {
+                "mountPath": "/opt/kubernets_config",
+                "name": "config"
+              }
+            ]
+          },
+          {
+            "env": [
+              {
+                "name": "ROLES",
+                "value": "api"
+              },
+              {
+                "name": "LOG_ROLE",
+                "value": "api"
+              },
+              {
+                "name": "LOG_TO_STDOUT",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "sysdigcloud.logging.stdout",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "JVM_EXTRA_OPTS",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "sysdigcloud.jvm.api.options",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "CASSANDRA_ENDPOINT_SNITCH",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "cassandra.endpoint.snitch",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "CASSANDRA_DC",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "cassandra.datacenter.name",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "ES_HOSTNAME",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "elasticsearch.hostname",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "ES_SEARCHGUARD_USER",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "elasticsearch.user",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "ES_SEARCHGUARD_ENABLED",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "elasticsearch.searchguard.enabled",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "ES_SEARCHGUARD_PASSWORD",
+                "valueFrom": {
+                  "secretKeyRef": {
+                    "key": "SG_PASSWORD",
+                    "name": "elasticsearch-searchguard"
+                  }
+                }
+              }
+            ],
+            "image": "foo.io/sysdig/sysdigcloud-backend:2304-allinone-java",
+            "imagePullPolicy": "IfNotPresent",
+            "lifecycle": {
+              "preStop": {
+                "exec": {
+                  "command": [
+                    "curl",
+                    "-v",
+                    "http://127.0.0.1:9000/api/admin/drain"
+                  ]
+                }
+              }
+            },
+            "name": "api",
+            "readinessProbe": {
+              "httpGet": {
+                "path": "/api/ping",
+                "port": 9000
+              },
+              "initialDelaySeconds": 30,
+              "timeoutSeconds": 2
+            },
+            "resources": {
+              "limits": {
+                "cpu": "4",
+                "memory": "4Gi"
+              },
+              "requests": {
+                "cpu": "1",
+                "memory": "1Gi"
+              }
+            },
+            "volumeMounts": [
+              {
+                "mountPath": "/var/log/sysdigcloud",
+                "name": "logs"
+              },
+              {
+                "mountPath": "/opt/kubernets_config",
+                "name": "config"
+              },
+              {
+                "mountPath": "/opt/kubernets_secrets/elasticsearch_certs",
+                "name": "elasticsearch-certs"
+              }
+            ]
+          }
+        ],
+        "imagePullSecrets": [
+          {
+            "name": "sysdigcloud-pull-secret"
+          }
+        ],
+        "terminationGracePeriodSeconds": 60,
+        "volumes": [
+          {
+            "name": "logs"
+          },
+          {
+            "configMap": {
+              "name": "sysdigcloud-config"
+            },
+            "name": "config"
+          },
+          {
+            "name": "ssl",
+            "secret": {
+              "secretName": "sysdigcloud-ssl-secret"
+            }
+          },
+          {
+            "name": "elasticsearch-certs",
+            "secret": {
+              "secretName": "ca-certs"
+            }
+          }
+        ]
+      }
+    }
+  }
+}
+{
+  "apiVersion": "v1",
+  "kind": "Service",
+  "metadata": {
+    "labels": {
+      "app": "sysdigcloud",
+      "role": "collector"
+    },
+    "name": "sysdigcloud-collector",
+    "namespace": "sysdigcloud"
+  },
+  "spec": {
+    "clusterIP": "None",
+    "ports": [
+      {
+        "name": "secure-collector",
+        "port": 6443,
+        "targetPort": 6443
+      },
+      {
+        "name": "collector",
+        "port": 6000,
+        "targetPort": 6000
+      }
+    ],
+    "selector": {
+      "app": "sysdigcloud",
+      "role": "collector"
+    }
+  }
+}
+{
+  "apiVersion": "extensions/v1beta1",
+  "kind": "Deployment",
+  "metadata": {
+    "name": "sysdigcloud-collector",
+    "namespace": "sysdigcloud"
+  },
+  "spec": {
+    "replicas": 1,
+    "template": {
+      "metadata": {
+        "annotations": {
+          "version": "2304"
+        },
+        "labels": {
+          "app": "sysdigcloud",
+          "role": "collector"
+        }
+      },
+      "spec": {
+        "affinity": {
+          "podAntiAffinity": {
+            "preferredDuringSchedulingIgnoredDuringExecution": [
+              {
+                "podAffinityTerm": {
+                  "labelSelector": {
+                    "matchExpressions": [
+                      {
+                        "key": "app",
+                        "operator": "In",
+                        "values": [
+                          "sysdigcloud"
+                        ]
+                      },
+                      {
+                        "key": "role",
+                        "operator": "In",
+                        "values": [
+                          "collector"
+                        ]
+                      }
+                    ]
+                  },
+                  "topologyKey": "kubernetes.io/hostname"
+                },
+                "weight": 100
+              }
+            ]
+          }
+        },
+        "containers": [
+          {
+            "env": [
+              {
+                "name": "LOG_ROLE",
+                "value": "collector"
+              },
+              {
+                "name": "API_ENDPOINT",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "api.url",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              }
+            ],
+            "image": "foo.io/sysdig/sysdigcloud-backend:2304-nginx",
+            "name": "nginx",
+            "volumeMounts": [
+              {
+                "mountPath": "/opt/certs/",
+                "name": "ssl"
+              },
+              {
+                "mountPath": "/opt/kubernets_config",
+                "name": "config"
+              }
+            ]
+          },
+          {
+            "env": [
+              {
+                "name": "ROLES",
+                "value": "collector"
+              },
+              {
+                "name": "LOG_ROLE",
+                "value": "collector"
+              },
+              {
+                "name": "LOG_TO_STDOUT",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "sysdigcloud.logging.stdout",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "API_ENDPOINT",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "api.url",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "JVM_EXTRA_OPTS",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "sysdigcloud.jvm.collector.options",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "CASSANDRA_ENDPOINT_SNITCH",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "cassandra.endpoint.snitch",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "CASSANDRA_DC",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "cassandra.datacenter.name",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "ES_HOSTNAME",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "elasticsearch.hostname",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "ES_SEARCHGUARD_USER",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "elasticsearch.user",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "ES_SEARCHGUARD_ENABLED",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "elasticsearch.searchguard.enabled",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "ES_SEARCHGUARD_PASSWORD",
+                "valueFrom": {
+                  "secretKeyRef": {
+                    "key": "SG_PASSWORD",
+                    "name": "elasticsearch-searchguard"
+                  }
+                }
+              }
+            ],
+            "image": "foo.io/sysdig/sysdigcloud-backend:2304-allinone-java",
+            "lifecycle": {
+              "preStop": {
+                "exec": {
+                  "command": [
+                    "curl",
+                    "-v",
+                    "http://127.0.0.1:9000/api/admin/drain"
+                  ]
+                }
+              }
+            },
+            "name": "collector",
+            "readinessProbe": {
+              "initialDelaySeconds": 30,
+              "tcpSocket": {
+                "port": 6000
+              },
+              "timeoutSeconds": 2
+            },
+            "resources": {
+              "limits": {
+                "cpu": "4",
+                "memory": "4Gi"
+              },
+              "requests": {
+                "cpu": "1",
+                "memory": "1Gi"
+              }
+            },
+            "volumeMounts": [
+              {
+                "mountPath": "/var/log/sysdigcloud",
+                "name": "logs"
+              },
+              {
+                "mountPath": "/opt/kubernets_config",
+                "name": "config"
+              },
+              {
+                "mountPath": "/opt/kubernets_secrets/elasticsearch_certs",
+                "name": "elasticsearch-certs"
+              }
+            ]
+          }
+        ],
+        "imagePullSecrets": [
+          {
+            "name": "sysdigcloud-pull-secret"
+          }
+        ],
+        "terminationGracePeriodSeconds": 60,
+        "volumes": [
+          {
+            "name": "logs"
+          },
+          {
+            "configMap": {
+              "name": "sysdigcloud-config"
+            },
+            "name": "config"
+          },
+          {
+            "name": "ssl",
+            "secret": {
+              "secretName": "sysdigcloud-ssl-secret"
+            }
+          },
+          {
+            "name": "elasticsearch-certs",
+            "secret": {
+              "secretName": "ca-certs"
+            }
+          }
+        ]
+      }
+    }
+  }
+}
+{
+  "apiVersion": "v1",
+  "kind": "Namespace",
+  "metadata": {
+    "name": "sysdigcloud"
+  },
+  "spec": {
+    "replicas": 1,
+    "template": {
+      "metadata": {
+        "annotations": {
+          "version": "2304"
+        },
+        "labels": {
+          "app": "sysdigcloud",
+          "role": "worker"
+        }
+      },
+      "spec": {
+        "containers": [
+          {
+            "image": "foo.io/sysdig/sysdigcloud-backend:2304-email-renderer",
+            "name": "email-renderer"
+          },
+          {
+            "env": [
+              {
+                "name": "ROLES",
+                "value": "worker"
+              },
+              {
+                "name": "LOG_ROLE",
+                "value": "worker"
+              },
+              {
+                "name": "LOG_TO_STDOUT",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "sysdigcloud.logging.stdout",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "JVM_EXTRA_OPTS",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "sysdigcloud.jvm.worker.options",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "CASSANDRA_ENDPOINT_SNITCH",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "cassandra.endpoint.snitch",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "CASSANDRA_DC",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "cassandra.datacenter.name",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "ES_HOSTNAME",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "elasticsearch.hostname",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "ES_SEARCHGUARD_USER",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "elasticsearch.user",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "ES_SEARCHGUARD_ENABLED",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "elasticsearch.searchguard.enabled",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "ES_SEARCHGUARD_PASSWORD",
+                "valueFrom": {
+                  "secretKeyRef": {
+                    "key": "SG_PASSWORD",
+                    "name": "elasticsearch-searchguard"
+                  }
+                }
+              }
+            ],
+            "image": "foo.io/sysdig/sysdigcloud-backend:2304-allinone-java",
+            "lifecycle": {
+              "preStop": {
+                "exec": {
+                  "command": [
+                    "curl",
+                    "-v",
+                    "http://127.0.0.1:9000/api/admin/drain"
+                  ]
+                }
+              }
+            },
+            "name": "worker",
+            "readinessProbe": {
+              "httpGet": {
+                "path": "/api/ping",
+                "port": 9000
+              },
+              "initialDelaySeconds": 30,
+              "timeoutSeconds": 2
+            },
+            "resources": {
+              "limits": {
+                "cpu": "4",
+                "memory": "4Gi"
+              },
+              "requests": {
+                "cpu": "1",
+                "memory": "1Gi"
+              }
+            },
+            "volumeMounts": [
+              {
+                "mountPath": "/var/log/sysdigcloud",
+                "name": "logs"
+              },
+              {
+                "mountPath": "/opt/kubernets_config",
+                "name": "config"
+              },
+              {
+                "mountPath": "/opt/kubernets_secrets/elasticsearch_certs",
+                "name": "elasticsearch-certs"
+              }
+            ]
+          }
+        ],
+        "imagePullSecrets": [
+          {
+            "name": "sysdigcloud-pull-secret"
+          }
+        ],
+        "terminationGracePeriodSeconds": 60,
+        "volumes": [
+          {
+            "name": "logs"
+          },
+          {
+            "configMap": {
+              "name": "sysdigcloud-config"
+            },
+            "name": "config"
+          },
+          {
+            "name": "elasticsearch-certs",
+            "secret": {
+              "secretName": "ca-certs"
+            }
+          }
+        ]
+      }
+    }
+  }
+}
+{
+  "apiVersion": "v1",
+  "data": {
+    "anchore.admin.user": "admin",
+    "anchore.db.dbname": "anchore",
+    "anchore.db.endpoint": "sysdigcloud-postgresql",
+    "anchore.db.user": "postgres",
+    "anchore.url": "http://sysdigcloud-anchore-core:8228",
+    "api.url": "https://foo.bar.com:443",
+    "cassandra.compaction.throughput": "",
+    "cassandra.datacenter.name": "",
+    "cassandra.endpoint": "sysdigcloud-cassandra.sysdigcloud.svc.cluster.local.",
+    "cassandra.endpoint.snitch": "",
+    "cassandra.jvm.options": "",
+    "cassandra.password": "",
+    "cassandra.port": "9042",
+    "cassandra.replication.factor": "1",
+    "cassandra.secure": "false",
+    "cassandra.snitch.extract_cmd": "",
+    "cassandra.snitch.hostname.file": "",
+    "cassandra.ssl.ciphers": "",
+    "cassandra.ssl.enabled": "false",
+    "cassandra.user": "",
+    "collector.endpoint": "foo.bar.com",
+    "collector.port": "6443",
+    "elasticsearch.hostname": "sysdigcloud-elasticsearch",
+    "elasticsearch.jvm.options": "",
+    "elasticsearch.searchguard.enabled": "true",
+    "elasticsearch.user": "admin",
+    "elasticsearch.verifySSL": "false",
+    "mysql.endpoint": "sysdigcloud-mysql",
+    "mysql.user": "mysql-admin",
+    "redis.endpoint": "redis-primary",
+    "scanning.backend.tlsCheck": "false",
+    "scanning.backend.url": "http://sysdigcloud-api:8080",
+    "scanning.mysql.dbname": "sysdig_scanning",
+    "scanning.mysql.endpoint": "sysdigcloud-mysql",
+    "scanning.mysql.user": "scanninguser",
+    "scanning.redis.enabled": "true",
+    "scanning.service.token": "change_me",
+    "smtp.from.address": "foo@bar.com",
+    "smtp.password": "bar",
+    "smtp.server": "foo.smtp.com",
+    "smtp.server.port": "25",
+    "smtp.ssl": "false",
+    "smtp.tls": "false",
+    "smtp.user": "foo",
+    "sysdigcloud.captures.cassandra.storage": "true",
+    "sysdigcloud.default.user": "test@sysdig.com",
+    "sysdigcloud.google.oauth.client.id": "",
+    "sysdigcloud.google.oauth.client.secret": "",
+    "sysdigcloud.jvm.api.options": "",
+    "sysdigcloud.jvm.collector.options": "",
+    "sysdigcloud.jvm.worker.options": "",
+    "sysdigcloud.ldap.enabled": "false",
+    "sysdigcloud.ldap.endpoint": "",
+    "sysdigcloud.ldap.group.membership.filter": "",
+    "sysdigcloud.ldap.group.search.base": "",
+    "sysdigcloud.ldap.group.search.filter": "",
+    "sysdigcloud.ldap.manager.dn": "",
+    "sysdigcloud.ldap.manager.password": "",
+    "sysdigcloud.ldap.root.dn": "",
+    "sysdigcloud.ldap.user.search.base": "",
+    "sysdigcloud.ldap.user.search.filter": "",
+    "sysdigcloud.license": "foobar",
+    "sysdigcloud.logging.stdout": "true",
+    "sysdigcloud.oauth.allowed.domains.list": "",
+    "sysdigcloud.restrict.password.login": "true"
+  },
+  "kind": "ConfigMap",
+  "metadata": {
+    "name": "sysdigcloud-config",
+    "namespace": "sysdigcloud"
+  }
+}
+{
+  "apiVersion": "v1",
+  "kind": "Service",
+  "metadata": {
+    "name": "haproxy-ingress-lb-service",
+    "namespace": "sysdigcloud"
+  },
+  "spec": {
+    "ports": [
+      {
+        "name": "http",
+        "port": 80,
+        "targetPort": 80
+      },
+      {
+        "name": "https",
+        "port": 443,
+        "targetPort": 443
+      },
+      {
+        "name": "https2",
+        "port": 6443,
+        "targetPort": 6443
+      }
+    ],
+    "selector": {
+      "run": "haproxy-ingress"
+    },
+    "type": "LoadBalancer"
+  }
+}
+{
+  "apiVersion": "v1",
+  "data": {
+    "cassandra-jvm-opts.json": "{\n    \"cassandra_hosts\": [\n        {\n            \"podname\": \"sysdigcloud-cassandra-0\",\n            \"additional_jvm_options\": \"\",\n            \"override_jvm_options\": \"\"\n        }\n    ]\n}"
+  },
+  "kind": "ConfigMap",
+  "metadata": {
+    "name": "cassandra-jvm-opts",
+    "namespace": "sysdigcloud"
+  }
+}
+{
+  "apiVersion": "v1",
+  "kind": "Service",
+  "metadata": {
+    "labels": {
+      "app": "sysdigcloud",
+      "role": "cassandra"
+    },
+    "name": "sysdigcloud-cassandra",
+    "namespace": "sysdigcloud"
+  },
+  "spec": {
+    "clusterIP": "None",
+    "ports": [
+      {
+        "name": "cql",
+        "port": 9042
+      },
+      {
+        "name": "intra-node-communication",
+        "port": 7000
+      },
+      {
+        "name": "tls-intra-node-communication",
+        "port": 7001
+      }
+    ],
+    "selector": {
+      "app": "sysdigcloud",
+      "role": "cassandra"
+    }
+  }
+}
+{
+  "apiVersion": "apps/v1beta1",
+  "kind": "StatefulSet",
+  "metadata": {
+    "labels": {
+      "affinity": "cassandra",
+      "app": "sysdigcloud",
+      "role": "cassandra"
+    },
+    "name": "sysdigcloud-cassandra",
+    "namespace": "sysdigcloud"
+  },
+  "spec": {
+    "podManagementPolicy": "Parallel",
+    "replicas": 1,
+    "selector": {
+      "matchLabels": {
+        "affinity": "cassandra",
+        "app": "sysdigcloud",
+        "role": "cassandra"
+      }
+    },
+    "serviceName": "sysdigcloud-cassandra",
+    "template": {
+      "metadata": {
+        "labels": {
+          "affinity": "cassandra",
+          "app": "sysdigcloud",
+          "role": "cassandra"
+        }
+      },
+      "spec": {
+        "affinity": {
+          "podAntiAffinity": {
+            "preferredDuringSchedulingIgnoredDuringExecution": [
+              {
+                "podAffinityTerm": {
+                  "labelSelector": {
+                    "matchExpressions": [
+                      {
+                        "key": "affinity",
+                        "operator": "In",
+                        "values": [
+                          "cassandra"
+                        ]
+                      }
+                    ]
+                  },
+                  "topologyKey": "kubernetes.io/hostname"
+                },
+                "weight": 100
+              }
+            ]
+          }
+        },
+        "containers": [
+          {
+            "env": [
+              {
+                "name": "CASSANDRA_SERVICE",
+                "value": "sysdigcloud-cassandra"
+              },
+              {
+                "name": "CASSANDRA_CLUSTER_NAME",
+                "value": "sysdigcloud"
+              },
+              {
+                "name": "CASSANDRA_CLUSTER_TIME_LIMIT",
+                "value": "5"
+              },
+              {
+                "name": "CASSANDRA_COMPACTION_THROUGHPUT",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "cassandra.compaction.throughput",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "JVM_EXTRA_OPTS",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "cassandra.jvm.options",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "CASSANDRA_SECURE",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "cassandra.secure",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "CASSANDRA_SSL",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "cassandra.ssl.enabled",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "POD_IP",
+                "valueFrom": {
+                  "fieldRef": {
+                    "fieldPath": "status.podIP"
+                  }
+                }
+              },
+              {
+                "name": "CASSANDRA_ENDPOINT_SNITCH",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "cassandra.endpoint.snitch",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "CASSANDRA_SNITCH_EXTRACT_CMD",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "cassandra.snitch.extract_cmd",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "CASSANDRA_SNITCH_HOSTNAME_FILE",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "cassandra.snitch.hostname.file",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "CASSANDRA_DC",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "cassandra.datacenter.name",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              }
+            ],
+            "image": "foo.io/sysdig/cassandra:2.1.21.12",
+            "lifecycle": {
+              "preStop": {
+                "exec": {
+                  "command": [
+                    "/bin/sh",
+                    "-c",
+                    "nodetool drain"
+                  ]
+                }
+              }
+            },
+            "name": "cassandra",
+            "readinessProbe": {
+              "exec": {
+                "command": [
+                  "/bin/bash",
+                  "/ready.sh"
+                ]
+              },
+              "failureThreshold": 10,
+              "initialDelaySeconds": 15,
+              "timeoutSeconds": 5
+            },
+            "resources": {
+              "limits": {
+                "cpu": "2",
+                "memory": "8Gi"
+              },
+              "requests": {
+                "cpu": "1",
+                "memory": "2Gi"
+              }
+            },
+            "volumeMounts": [
+              {
+                "mountPath": "/var/lib/cassandra",
+                "name": "data"
+              },
+              {
+                "mountPath": "/opt/cassandra/cassandra-jvm-opts.json",
+                "name": "cassandra-jvm-opts",
+                "subPath": "cassandra-jvm-opts.json"
+              }
+            ]
+          }
+        ],
+        "imagePullSecrets": [
+          {
+            "name": "sysdigcloud-pull-secret"
+          }
+        ],
+        "volumes": [
+          {
+            "hostPath": {
+              "path": "/var/lib/cassandra",
+              "type": "DirectoryOrCreate"
+            },
+            "name": "data"
+          },
+          {
+            "configMap": {
+              "name": "cassandra-jvm-opts"
+            },
+            "name": "cassandra-jvm-opts"
+          }
+        ]
+      }
+    },
+    "updateStrategy": {
+      "type": "OnDelete"
+    }
+  }
+}
+{
+  "apiVersion": "v1",
+  "data": {
+    "ELASTICSEARCH_CLUSTER_NAME": "sysdigcloud",
+    "ELASTICSEARCH_SERVICE": "sysdigcloud-elasticsearch",
+    "ELASTICSEARCH_USER": "admin",
+    "ES_JAVA_OPTS": "",
+    "SEARCHGUARD_ENABLED": "true"
+  },
+  "kind": "ConfigMap",
+  "metadata": {
+    "name": "elasticsearch",
+    "namespace": "sysdigcloud"
+  }
+}
+{
+  "apiVersion": "v1",
+  "kind": "Service",
+  "metadata": {
+    "annotations": {
+      "service.alpha.kubernetes.io/tolerate-unready-endpoints": "true"
+    },
+    "labels": {
+      "app": "sysdigcloud",
+      "role": "elasticsearch"
+    },
+    "name": "sysdigcloud-elasticsearch",
+    "namespace": "sysdigcloud"
+  },
+  "spec": {
+    "clusterIP": "None",
+    "ports": [
+      {
+        "name": "api",
+        "port": 9200
+      },
+      {
+        "name": "transport-protocol",
+        "port": 9300
+      }
+    ],
+    "publishNotReadyAddresses": true,
+    "selector": {
+      "app": "sysdigcloud",
+      "role": "elasticsearch"
+    }
+  }
+}
+{
+  "apiVersion": "apps/v1beta1",
+  "kind": "StatefulSet",
+  "metadata": {
+    "labels": {
+      "affinity": "elasticsearch",
+      "app": "sysdigcloud",
+      "component": "elasticsearch",
+      "role": "elasticsearch"
+    },
+    "name": "sysdigcloud-elasticsearch",
+    "namespace": "sysdigcloud"
+  },
+  "spec": {
+    "podManagementPolicy": "Parallel",
+    "replicas": 1,
+    "selector": {
+      "matchLabels": {
+        "affinity": "elasticsearch",
+        "app": "sysdigcloud",
+        "component": "elasticsearch",
+        "role": "elasticsearch"
+      }
+    },
+    "serviceName": "sysdigcloud-elasticsearch",
+    "template": {
+      "metadata": {
+        "labels": {
+          "affinity": "elasticsearch",
+          "app": "sysdigcloud",
+          "component": "elasticsearch",
+          "role": "elasticsearch"
+        }
+      },
+      "spec": {
+        "affinity": {
+          "podAntiAffinity": {
+            "preferredDuringSchedulingIgnoredDuringExecution": [
+              {
+                "podAffinityTerm": {
+                  "labelSelector": {
+                    "matchExpressions": [
+                      {
+                        "key": "affinity",
+                        "operator": "In",
+                        "values": [
+                          "elasticsearch"
+                        ]
+                      }
+                    ]
+                  },
+                  "topologyKey": "kubernetes.io/hostname"
+                },
+                "weight": 100
+              }
+            ]
+          }
+        },
+        "containers": [
+          {
+            "env": [
+              {
+                "name": "ELASTICSEARCH_GOSSIP_NODES_NUM",
+                "value": "1"
+              }
+            ],
+            "envFrom": [
+              {
+                "configMapRef": {
+                  "name": "elasticsearch"
+                }
+              },
+              {
+                "secretRef": {
+                  "name": "elasticsearch-searchguard"
+                }
+              }
+            ],
+            "image": "foo.io/sysdig/elasticsearch:5.6.16.2",
+            "name": "elasticsearch",
+            "readinessProbe": {
+              "exec": {
+                "command": [
+                  "/bin/bash",
+                  "/readiness_probe.sh"
+                ]
+              },
+              "failureThreshold": 10,
+              "initialDelaySeconds": 20,
+              "timeoutSeconds": 5
+            },
+            "resources": {
+              "limits": {
+                "cpu": "2",
+                "memory": "8Gi"
+              },
+              "requests": {
+                "cpu": "1",
+                "memory": "4Gi"
+              }
+            },
+            "securityContext": {
+              "privileged": true
+            },
+            "volumeMounts": [
+              {
+                "mountPath": "/usr/share/elasticsearch/data",
+                "name": "data"
+              },
+              {
+                "mountPath": "/tmp/elasticsearch-certs/",
+                "name": "elasticsearch-certs"
+              },
+              {
+                "mountPath": "/tmp/sgconfig/",
+                "name": "sg-config"
+              }
+            ]
+          }
+        ],
+        "imagePullSecrets": [
+          {
+            "name": "sysdigcloud-pull-secret"
+          }
+        ],
+        "volumes": [
+          {
+            "hostPath": {
+              "path": "/usr/share/elasticsearch",
+              "type": "DirectoryOrCreate"
+            },
+            "name": "data"
+          },
+          {
+            "name": "elasticsearch-certs",
+            "secret": {
+              "defaultMode": 256,
+              "secretName": "ca-certs"
+            }
+          },
+          {
+            "name": "sg-config",
+            "secret": {
+              "defaultMode": 256,
+              "secretName": "elasticsearch-searchguard-config-files"
+            }
+          }
+        ]
+      }
+    },
+    "updateStrategy": {
+      "type": "OnDelete"
+    }
+  }
+}
+{
+  "apiVersion": "v1",
+  "data": {
+    "my.cnf": "[client]\nport   = 3306\nsocket   = /var/run/mysqld/mysqld.sock\ndefault-character-set=utf8\n\n[mysql]\ndefault-character-set=utf8\n[mysqld_safe]\npid-file = /var/run/mysqld/mysqld.pid\nsocket   = /var/run/mysqld/mysqld.sock\nnice   = 0\n[mysqld]\nuser   = mysql\npid-file = /var/run/mysqld/mysqld.pid\nsocket   = /var/run/mysqld/mysqld.sock\nport   = 3306\nbasedir    = /usr\ndatadir    = /var/lib/mysql\ntmpdir   = /tmp\nlc-messages-dir  = /usr/share/mysql\nexplicit_defaults_for_timestamp\ncollation-server = utf8_unicode_ci\ninit-connect='SET NAMES utf8'\ncharacter-set-server = utf8\nlog-error  = /var/log/mysql/error.log\n# Recommended in standard MySQL setup\nsql_mode=NO_ENGINE_SUBSTITUTION,STRICT_TRANS_TABLES\n# Disabling symbolic-links is recommended to prevent assorted security risks\nsymbolic-links=0\n# This increase of max_connections from the default of 151 to 1024 has been\n# tested as adequate for an environment with up to 24 API/Worker/Collector\n# components (8 of each) and 4000 Agents of incoming traffic. The MySQL\n# container also consumed as much as 1 GB of memory in this test.\nmax_connections=1024\n!includedir /etc/mysql/conf.d/"
+  },
+  "kind": "ConfigMap",
+  "metadata": {
+    "labels": {
+      "app": "sysdigcloud"
+    },
+    "name": "sysdigcloud-mysql-config",
+    "namespace": "sysdigcloud"
+  }
+}
+{
+  "apiVersion": "v1",
+  "kind": "Service",
+  "metadata": {
+    "labels": {
+      "app": "sysdigcloud",
+      "role": "mysql"
+    },
+    "name": "sysdigcloud-mysql",
+    "namespace": "sysdigcloud"
+  },
+  "spec": {
+    "ports": [
+      {
+        "port": 3306
+      }
+    ],
+    "selector": {
+      "app": "sysdigcloud",
+      "role": "mysql"
+    }
+  }
+}
+{
+  "apiVersion": "apps/v1",
+  "kind": "StatefulSet",
+  "metadata": {
+    "labels": {
+      "app": "sysdigcloud",
+      "role": "mysql"
+    },
+    "name": "sysdigcloud-mysql",
+    "namespace": "sysdigcloud"
+  },
+  "spec": {
+    "replicas": 1,
+    "selector": {
+      "matchLabels": {
+        "app": "sysdigcloud",
+        "role": "mysql"
+      }
+    },
+    "serviceName": "sysdigcloud-mysql-cluster",
+    "template": {
+      "metadata": {
+        "labels": {
+          "app": "sysdigcloud",
+          "role": "mysql"
+        }
+      },
+      "spec": {
+        "containers": [
+          {
+            "env": [
+              {
+                "name": "MYSQL_ROOT_PASSWORD",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "MYSQL_USER",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "mysql.user",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "MYSQL_PASSWORD",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "MYSQL_DATABASE",
+                "value": "draios"
+              },
+              {
+                "name": "MYSQL_EXTRADB_SCANNING_DBNAME",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "scanning.mysql.dbname",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "MYSQL_EXTRADB_SCANNING_USER",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "scanning.mysql.user",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "MYSQL_EXTRADB_SCANNING_PASSWORD",
+                "valueFrom": {
+                  "secretKeyRef": {
+                    "name": "sysdigcloud-scanning"
+                  }
+                }
+              }
+            ],
+            "image": "foo.io/sysdig/mysql:5.6.43.2",
+            "name": "mysql",
+            "resources": {
+              "requests": {
+                "cpu": "500m",
+                "memory": "1Gi"
+              }
+            },
+            "volumeMounts": [
+              {
+                "mountPath": "/etc/mysql/my.cnf",
+                "name": "mysql-config",
+                "subPath": "my.cnf"
+              },
+              {
+                "mountPath": "/var/lib/mysql",
+                "name": "data"
+              }
+            ]
+          }
+        ],
+        "imagePullSecrets": [
+          {
+            "name": "sysdigcloud-pull-secret"
+          }
+        ],
+        "volumes": [
+          {
+            "hostPath": {
+              "path": "/var/lib/mysql",
+              "type": "DirectoryOrCreate"
+            },
+            "name": "data"
+          },
+          {
+            "configMap": {
+              "name": "sysdigcloud-mysql-config"
+            },
+            "name": "mysql-config"
+          }
+        ]
+      }
+    }
+  }
+}
+{
+  "apiVersion": "v1",
+  "kind": "Service",
+  "metadata": {
+    "labels": {
+      "app": "sysdigcloud",
+      "role": "postgresql"
+    },
+    "name": "sysdigcloud-postgresql",
+    "namespace": "sysdigcloud"
+  },
+  "spec": {
+    "ports": [
+      {
+        "name": "postgresql",
+        "port": 5432,
+        "targetPort": "postgresql"
+      }
+    ],
+    "selector": {
+      "app": "sysdigcloud",
+      "role": "postgresql"
+    },
+    "type": "ClusterIP"
+  }
+}
+{
+  "apiVersion": "apps/v1",
+  "kind": "StatefulSet",
+  "metadata": {
+    "labels": {
+      "app": "sysdigcloud",
+      "role": "postgresql"
+    },
+    "name": "sysdigcloud-postgresql",
+    "namespace": "sysdigcloud"
+  },
+  "spec": {
+    "replicas": 1,
+    "selector": {
+      "matchLabels": {
+        "app": "sysdigcloud",
+        "role": "postgresql"
+      }
+    },
+    "serviceName": "sysdigcloud-postgresql",
+    "template": {
+      "metadata": {
+        "labels": {
+          "app": "sysdigcloud",
+          "role": "postgresql"
+        }
+      },
+      "spec": {
+        "containers": [
+          {
+            "env": [
+              {
+                "name": "POSTGRES_USER",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "anchore.db.user",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "PGUSER",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "anchore.db.user",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "POSTGRES_DB",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "anchore.db.dbname",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "PGDATA",
+                "value": "/var/lib/postgresql/data/pgdata"
+              },
+              {
+                "name": "POSTGRES_PASSWORD",
+                "valueFrom": {
+                  "secretKeyRef": {
+                    "key": "anchore.db.password",
+                    "name": "sysdigcloud-anchore"
+                  }
+                }
+              },
+              {
+                "name": "POD_IP",
+                "valueFrom": {
+                  "fieldRef": {
+                    "fieldPath": "status.podIP"
+                  }
+                }
+              }
+            ],
+            "image": "foo.io/sysdig/postgres:10.6-alpine.1",
+            "livenessProbe": {
+              "exec": {
+                "command": [
+                  "sh",
+                  "-c",
+                  "exec pg_isready --host $POD_IP"
+                ]
+              },
+              "failureThreshold": 6,
+              "initialDelaySeconds": 60,
+              "timeoutSeconds": 5
+            },
+            "name": "postgresql",
+            "ports": [
+              {
+                "containerPort": 5432,
+                "name": "postgresql"
+              }
+            ],
+            "readinessProbe": {
+              "exec": {
+                "command": [
+                  "sh",
+                  "-c",
+                  "exec pg_isready --host $POD_IP"
+                ]
+              },
+              "initialDelaySeconds": 5,
+              "periodSeconds": 5,
+              "timeoutSeconds": 3
+            },
+            "resources": {
+              "limits": {
+                "cpu": "2",
+                "memory": "4Gi"
+              },
+              "requests": {
+                "cpu": "500m",
+                "memory": "500Mi"
+              }
+            },
+            "volumeMounts": [
+              {
+                "mountPath": "/var/lib/postgresql/data/pgdata",
+                "name": "data",
+                "subPath": "postgresql-db"
+              }
+            ]
+          }
+        ],
+        "imagePullSecrets": [
+          {
+            "name": "sysdigcloud-pull-secret"
+          }
+        ],
+        "volumes": [
+          {
+            "hostPath": {
+              "path": "/var/lib/postgresql/data/pgdata",
+              "type": "DirectoryOrCreate"
+            },
+            "name": "data"
+          }
+        ]
+      }
+    }
+  }
+}
+{
+  "apiVersion": "v1",
+  "kind": "Service",
+  "metadata": {
+    "labels": {
+      "app": "redis-primary"
+    },
+    "name": "redis-primary",
+    "namespace": "sysdigcloud"
+  },
+  "spec": {
+    "ports": [
+      {
+        "name": "redis-primary",
+        "port": 6379
+      }
+    ],
+    "selector": {
+      "app": "redis-primary"
+    }
+  }
+}
+{
+  "apiVersion": "v1",
+  "kind": "Service",
+  "metadata": {
+    "labels": {
+      "app": "redis-secondary"
+    },
+    "name": "redis-secondary",
+    "namespace": "sysdigcloud"
+  },
+  "spec": {
+    "ports": [
+      {
+        "name": "redis-secondary",
+        "port": 6379
+      }
+    ],
+    "selector": {
+      "app": "redis-secondary"
+    }
+  }
+}
+{
+  "apiVersion": "v1",
+  "kind": "Service",
+  "metadata": {
+    "labels": {
+      "app": "redis-sentinel"
+    },
+    "name": "redis-sentinel",
+    "namespace": "sysdigcloud"
+  },
+  "spec": {
+    "ports": [
+      {
+        "name": "redis-sentinel",
+        "port": 26379
+      }
+    ],
+    "selector": {
+      "app": "redis-sentinel"
+    }
+  }
+}
+{
+  "apiVersion": "apps/v1beta1",
+  "kind": "StatefulSet",
+  "metadata": {
+    "name": "redis-primary",
+    "namespace": "sysdigcloud"
+  },
+  "spec": {
+    "replicas": 1,
+    "serviceName": "redis-primary",
+    "template": {
+      "metadata": {
+        "labels": {
+          "app": "redis-primary"
+        }
+      },
+      "spec": {
+        "affinity": {
+          "podAntiAffinity": {
+            "requiredDuringSchedulingIgnoredDuringExecution": [
+              {
+                "labelSelector": {
+                  "matchExpressions": [
+                    {
+                      "key": "app",
+                      "operator": "In",
+                      "values": [
+                        "redis-secondary",
+                        "redis-primary"
+                      ]
+                    }
+                  ]
+                },
+                "topologyKey": "kubernetes.io/hostname"
+              }
+            ]
+          }
+        },
+        "containers": [
+          {
+            "env": [
+              {
+                "name": "REDIS_PASSWORD",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              }
+            ],
+            "image": "foo.io/sysdig/redis:4.0.12.1-alpine-ha",
+            "imagePullPolicy": "Always",
+            "name": "redis-primary",
+            "ports": [
+              {
+                "containerPort": 6379,
+                "name": "redis-primary"
+              }
+            ],
+            "resources": {
+              "limits": {
+                "cpu": 2,
+                "memory": "2Gi"
+              },
+              "requests": {
+                "cpu": "100m",
+                "memory": "100Mi"
+              }
+            },
+            "volumeMounts": [
+              {
+                "mountPath": "/data",
+                "name": "redis-primary-volume"
+              }
+            ]
+          }
+        ],
+        "imagePullSecrets": [
+          {
+            "name": "sysdigcloud-pull-secret"
+          }
+        ],
+        "terminationGracePeriodSeconds": 10,
+        "volumes": [
+          {
+            "emptyDir": {},
+            "name": "redis-primary-volume"
+          }
+        ]
+      }
+    }
+  }
+}
+{
+  "apiVersion": "apps/v1beta1",
+  "kind": "StatefulSet",
+  "metadata": {
+    "name": "redis-secondary",
+    "namespace": "sysdigcloud"
+  },
+  "spec": {
+    "replicas": 2,
+    "serviceName": "redis-secondary",
+    "template": {
+      "metadata": {
+        "labels": {
+          "app": "redis-secondary"
+        }
+      },
+      "spec": {
+        "affinity": {
+          "podAntiAffinity": {
+            "requiredDuringSchedulingIgnoredDuringExecution": [
+              {
+                "labelSelector": {
+                  "matchExpressions": [
+                    {
+                      "key": "app",
+                      "operator": "In",
+                      "values": [
+                        "redis-secondary",
+                        "redis-primary"
+                      ]
+                    }
+                  ]
+                },
+                "topologyKey": "kubernetes.io/hostname"
+              }
+            ]
+          }
+        },
+        "containers": [
+          {
+            "env": [
+              {
+                "name": "REDIS_PASSWORD",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "REPLICA",
+                "value": "true"
+              }
+            ],
+            "image": "foo.io/sysdig/redis:4.0.12.1-alpine-ha",
+            "imagePullPolicy": "Always",
+            "name": "redis-secondary",
+            "ports": [
+              {
+                "containerPort": 6379,
+                "name": "redis-secondary"
+              }
+            ],
+            "resources": {
+              "limits": {
+                "cpu": 2,
+                "memory": "2Gi"
+              },
+              "requests": {
+                "cpu": "100m",
+                "memory": "100Mi"
+              }
+            },
+            "volumeMounts": [
+              {
+                "mountPath": "/data",
+                "name": "redis-secondary-volume"
+              }
+            ]
+          }
+        ],
+        "imagePullSecrets": [
+          {
+            "name": "sysdigcloud-pull-secret"
+          }
+        ],
+        "terminationGracePeriodSeconds": 10,
+        "volumes": [
+          {
+            "emptyDir": {},
+            "name": "redis-secondary-volume"
+          }
+        ]
+      }
+    }
+  }
+}
+{
+  "apiVersion": "v1",
+  "kind": "ServiceAccount",
+  "metadata": {
+    "name": "ingress-controller",
+    "namespace": "sysdigcloud"
+  },
+  "spec": {
+    "replicas": 3,
+    "serviceName": "redis-sentinel",
+    "template": {
+      "metadata": {
+        "labels": {
+          "app": "redis-sentinel"
+        }
+      },
+      "spec": {
+        "affinity": {
+          "podAntiAffinity": {
+            "requiredDuringSchedulingIgnoredDuringExecution": [
+              {
+                "labelSelector": {
+                  "matchExpressions": [
+                    {
+                      "key": "app",
+                      "operator": "In",
+                      "values": [
+                        "redis-sentinel"
+                      ]
+                    }
+                  ]
+                },
+                "topologyKey": "kubernetes.io/hostname"
+              }
+            ]
+          }
+        },
+        "containers": [
+          {
+            "env": [
+              {
+                "name": "SENTINEL",
+                "value": "redis-primary"
+              },
+              {
+                "name": "REDIS_PASSWORD",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              }
+            ],
+            "image": "foo.io/sysdig/redis:4.0.12.1-alpine-ha",
+            "imagePullPolicy": "Always",
+            "name": "redis-sentinel",
+            "ports": [
+              {
+                "containerPort": 26379,
+                "name": "redis-sentinel"
+              }
+            ],
+            "resources": {
+              "limits": {
+                "cpu": "300m",
+                "memory": "20Mi"
+              },
+              "requests": {
+                "cpu": "50m",
+                "memory": "5Mi"
+              }
+            }
+          }
+        ],
+        "imagePullSecrets": [
+          {
+            "name": "sysdigcloud-pull-secret"
+          }
+        ],
+        "terminationGracePeriodSeconds": 10
+      }
+    }
+  }
+}
+{
+  "apiVersion": "rbac.authorization.k8s.io/v1beta1",
+  "kind": "Role",
+  "metadata": {
+    "name": "ingress-controller",
+    "namespace": "sysdigcloud"
+  },
+  "rules": [
+    {
+      "apiGroups": [
+        ""
+      ],
+      "resources": [
+        "configmaps",
+        "pods",
+        "secrets",
+        "namespaces"
+      ],
+      "verbs": [
+        "get"
+      ]
+    },
+    {
+      "apiGroups": [
+        ""
+      ],
+      "resources": [
+        "configmaps"
+      ],
+      "verbs": [
+        "get",
+        "update"
+      ]
+    },
+    {
+      "apiGroups": [
+        ""
+      ],
+      "resources": [
+        "configmaps"
+      ],
+      "verbs": [
+        "create"
+      ]
+    },
+    {
+      "apiGroups": [
+        ""
+      ],
+      "resources": [
+        "endpoints"
+      ],
+      "verbs": [
+        "get",
+        "create",
+        "update"
+      ]
+    }
+  ]
+}
+{
+  "apiVersion": "rbac.authorization.k8s.io/v1beta1",
+  "kind": "ClusterRole",
+  "metadata": {
+    "name": "ingress-controller",
+    "namespace": "sysdigcloud"
+  },
+  "rules": [
+    {
+      "apiGroups": [
+        ""
+      ],
+      "resources": [
+        "configmaps",
+        "endpoints",
+        "nodes",
+        "pods",
+        "secrets"
+      ],
+      "verbs": [
+        "list",
+        "watch"
+      ]
+    },
+    {
+      "apiGroups": [
+        ""
+      ],
+      "resources": [
+        "nodes"
+      ],
+      "verbs": [
+        "get"
+      ]
+    },
+    {
+      "apiGroups": [
+        ""
+      ],
+      "resources": [
+        "services"
+      ],
+      "verbs": [
+        "get",
+        "list",
+        "watch"
+      ]
+    },
+    {
+      "apiGroups": [
+        "extensions"
+      ],
+      "resources": [
+        "ingresses"
+      ],
+      "verbs": [
+        "get",
+        "list",
+        "watch"
+      ]
+    },
+    {
+      "apiGroups": [
+        ""
+      ],
+      "resources": [
+        "events"
+      ],
+      "verbs": [
+        "create",
+        "patch"
+      ]
+    },
+    {
+      "apiGroups": [
+        "extensions"
+      ],
+      "resources": [
+        "ingresses/status"
+      ],
+      "verbs": [
+        "update"
+      ]
+    }
+  ]
+}
+{
+  "apiVersion": "rbac.authorization.k8s.io/v1beta1",
+  "kind": "RoleBinding",
+  "metadata": {
+    "name": "ingress-controller",
+    "namespace": "sysdigcloud"
+  },
+  "roleRef": {
+    "apiGroup": "rbac.authorization.k8s.io",
+    "kind": "Role",
+    "name": "ingress-controller"
+  },
+  "subjects": [
+    {
+      "kind": "ServiceAccount",
+      "name": "ingress-controller"
+    },
+    {
+      "apiGroup": "rbac.authorization.k8s.io",
+      "kind": "User",
+      "name": "ingress-controller"
+    }
+  ]
+}
+{
+  "apiVersion": "rbac.authorization.k8s.io/v1beta1",
+  "kind": "ClusterRoleBinding",
+  "metadata": {
+    "name": "ingress-controller",
+    "namespace": "sysdigcloud"
+  },
+  "roleRef": {
+    "apiGroup": "rbac.authorization.k8s.io",
+    "kind": "ClusterRole",
+    "name": "ingress-controller"
+  },
+  "subjects": [
+    {
+      "kind": "ServiceAccount",
+      "name": "ingress-controller",
+      "namespace": "sysdigcloud"
+    },
+    {
+      "apiGroup": "rbac.authorization.k8s.io",
+      "kind": "User",
+      "name": "ingress-controller"
+    }
+  ]
+}
+{
+  "apiVersion": "v1",
+  "kind": "ConfigMap",
+  "metadata": {
+    "name": "haproxy-ingress",
+    "namespace": "sysdigcloud"
+  }
+}
+{
+  "apiVersion": "v1",
+  "data": {
+    "6443": "sysdigcloud/sysdigcloud-collector:6000:::sysdigcloud/sysdigcloud-ssl-secret"
+  },
+  "kind": "ConfigMap",
+  "metadata": {
+    "name": "haproxy-tcp-services",
+    "namespace": "sysdigcloud"
+  }
+}
+{
+  "apiVersion": "v1",
+  "kind": "Service",
+  "metadata": {
+    "name": "ingress-default-backend",
+    "namespace": "sysdigcloud"
+  },
+  "spec": {
+    "ports": [
+      {
+        "port": 8080
+      }
+    ],
+    "selector": {
+      "run": "ingress-default-backend"
+    }
+  }
+}
+{
+  "apiVersion": "extensions/v1beta1",
+  "kind": "Deployment",
+  "metadata": {
+    "labels": {
+      "run": "ingress-default-backend"
+    },
+    "name": "ingress-default-backend",
+    "namespace": "sysdigcloud"
+  },
+  "spec": {
+    "selector": {
+      "matchLabels": {
+        "run": "ingress-default-backend"
+      }
+    },
+    "template": {
+      "metadata": {
+        "labels": {
+          "run": "ingress-default-backend"
+        }
+      },
+      "spec": {
+        "containers": [
+          {
+            "image": "foo.io/sysdig/ingress-default-backend:1.0",
+            "name": "ingress-default-backend",
+            "ports": [
+              {
+                "containerPort": 8080
+              }
+            ],
+            "resources": {
+              "limits": {
+                "cpu": "10m",
+                "memory": "20Mi"
+              }
+            }
+          }
+        ],
+        "imagePullSecrets": [
+          {
+            "name": "sysdigcloud-pull-secret"
+          }
+        ]
+      }
+    }
+  }
+}
+{
+  "apiVersion": "v1",
+  "kind": "Service",
+  "metadata": {
+    "labels": {
+      "app": "sysdigcloud",
+      "role": "scanning-api"
+    },
+    "name": "sysdigcloud-scanning-api",
+    "namespace": "sysdigcloud"
+  },
+  "spec": {
+    "ports": [
+      {
+        "name": "http",
+        "port": 80
+      }
+    ],
+    "selector": {
+      "app": "sysdigcloud",
+      "role": "scanning-api"
+    },
+    "type": "ClusterIP"
+  }
+}
+{
+  "apiVersion": "apps/v1",
+  "kind": "Deployment",
+  "metadata": {
+    "annotations": {
+      "version": "2304"
+    },
+    "labels": {
+      "app": "sysdigcloud",
+      "role": "scanning-alertmgr"
+    },
+    "name": "sysdigcloud-scanning-alertmgr",
+    "namespace": "sysdigcloud"
+  },
+  "spec": {
+    "replicas": 1,
+    "revisionHistoryLimit": 2,
+    "selector": {
+      "matchLabels": {
+        "app": "sysdigcloud",
+        "role": "scanning-alertmgr"
+      }
+    },
+    "template": {
+      "metadata": {
+        "annotations": {
+          "prometheus.io/path": "/metrics",
+          "prometheus.io/port": "80",
+          "prometheus.io/scrape": "true"
+        },
+        "labels": {
+          "app": "sysdigcloud",
+          "role": "scanning-alertmgr"
+        }
+      },
+      "spec": {
+        "affinity": {
+          "podAntiAffinity": {
+            "preferredDuringSchedulingIgnoredDuringExecution": [
+              {
+                "podAffinityTerm": {
+                  "labelSelector": {
+                    "matchExpressions": [
+                      {
+                        "key": "app",
+                        "operator": "In",
+                        "values": [
+                          "sysdigcloud"
+                        ]
+                      },
+                      {
+                        "key": "role",
+                        "operator": "In",
+                        "values": [
+                          "scanning-alertmgr"
+                        ]
+                      }
+                    ]
+                  },
+                  "topologyKey": "kubernetes.io/hostname"
+                },
+                "weight": 100
+              }
+            ]
+          }
+        },
+        "containers": [
+          {
+            "env": [
+              {
+                "name": "ALERT_MANAGER",
+                "value": "1"
+              },
+              {
+                "name": "ANCHORE_ADMIN_USER",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "anchore.admin.user",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "ANCHORE_ADMIN_PASSWORD",
+                "valueFrom": {
+                  "secretKeyRef": {
+                    "key": "anchore.admin.password",
+                    "name": "sysdigcloud-anchore"
+                  }
+                }
+              },
+              {
+                "name": "ANCHORE_DB_ENDPOINT",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "anchore.db.endpoint",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "ANCHORE_DB_NAME",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "anchore.db.dbname",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "ANCHORE_DB_PASSWORD",
+                "valueFrom": {
+                  "secretKeyRef": {
+                    "key": "anchore.db.password",
+                    "name": "sysdigcloud-anchore"
+                  }
+                }
+              },
+              {
+                "name": "ANCHORE_DB_USER",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "anchore.db.user",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "ANCHORE_URL",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "anchore.url",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "BACKEND_SERVICE_TOKEN",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "scanning.service.token",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "BACKEND_TLS_CHECK_CERTIFICATE",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "scanning.backend.tlsCheck",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "BACKEND_URL",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "scanning.backend.url",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "DB_ENDPOINT",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "scanning.mysql.endpoint",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "DB_NAME",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "scanning.mysql.dbname",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "DB_PASSWORD",
+                "valueFrom": {
+                  "secretKeyRef": {
+                    "name": "sysdigcloud-scanning"
+                  }
+                }
+              },
+              {
+                "name": "DB_USER",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "scanning.mysql.user",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "REDIS_ENABLED",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "scanning.redis.enabled",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "REDIS_ENDPOINT",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "redis.endpoint",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "REDIS_PASSWORD",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              }
+            ],
+            "image": "foo.io/sysdig/scanning:2304",
+            "imagePullPolicy": "IfNotPresent",
+            "name": "scanning-alertmgr",
+            "resources": {
+              "limits": {
+                "cpu": 4,
+                "memory": "4Gi"
+              },
+              "requests": {
+                "cpu": "500m",
+                "memory": "1Gi"
+              }
+            }
+          }
+        ],
+        "imagePullSecrets": [
+          {
+            "name": "sysdigcloud-pull-secret"
+          }
+        ]
+      }
+    }
+  }
+}
+{
+  "apiVersion": "apps/v1",
+  "kind": "Deployment",
+  "metadata": {
+    "annotations": {
+      "version": "2304"
+    },
+    "labels": {
+      "affinity": "sysdigcloud-scanning-api",
+      "app": "sysdigcloud",
+      "role": "scanning-api"
+    },
+    "name": "sysdigcloud-scanning-api",
+    "namespace": "sysdigcloud"
+  },
+  "spec": {
+    "replicas": 1,
+    "selector": {
+      "matchLabels": {
+        "app": "sysdigcloud",
+        "role": "scanning-api"
+      }
+    },
+    "template": {
+      "metadata": {
+        "annotations": {
+          "prometheus.io/path": "/metrics",
+          "prometheus.io/port": "80",
+          "prometheus.io/scrape": "true"
+        },
+        "labels": {
+          "app": "sysdigcloud",
+          "role": "scanning-api"
+        }
+      },
+      "spec": {
+        "affinity": {
+          "podAntiAffinity": {
+            "preferredDuringSchedulingIgnoredDuringExecution": [
+              {
+                "podAffinityTerm": {
+                  "labelSelector": {
+                    "matchExpressions": [
+                      {
+                        "key": "affinity",
+                        "operator": "In",
+                        "values": [
+                          "sysdigcloud-scanning-api"
+                        ]
+                      }
+                    ]
+                  },
+                  "topologyKey": "kubernetes.io/hostname"
+                },
+                "weight": 100
+              }
+            ]
+          }
+        },
+        "containers": [
+          {
+            "env": [
+              {
+                "name": "ANCHORE_ADMIN_USER",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "anchore.admin.user",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "ANCHORE_ADMIN_PASSWORD",
+                "valueFrom": {
+                  "secretKeyRef": {
+                    "key": "anchore.admin.password",
+                    "name": "sysdigcloud-anchore"
+                  }
+                }
+              },
+              {
+                "name": "ANCHORE_DB_ENDPOINT",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "anchore.db.endpoint",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "ANCHORE_DB_NAME",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "anchore.db.dbname",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "ANCHORE_DB_PASSWORD",
+                "valueFrom": {
+                  "secretKeyRef": {
+                    "key": "anchore.db.password",
+                    "name": "sysdigcloud-anchore"
+                  }
+                }
+              },
+              {
+                "name": "ANCHORE_DB_USER",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "anchore.db.user",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "ANCHORE_URL",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "anchore.url",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "BACKEND_SERVICE_TOKEN",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "scanning.service.token",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "BACKEND_TLS_CHECK_CERTIFICATE",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "scanning.backend.tlsCheck",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "BACKEND_URL",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "scanning.backend.url",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "DB_ENDPOINT",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "scanning.mysql.endpoint",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "DB_NAME",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "scanning.mysql.dbname",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "DB_PASSWORD",
+                "valueFrom": {
+                  "secretKeyRef": {
+                    "name": "sysdigcloud-scanning"
+                  }
+                }
+              },
+              {
+                "name": "DB_USER",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "scanning.mysql.user",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "REDIS_ENABLED",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "scanning.redis.enabled",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "REDIS_ENDPOINT",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "key": "redis.endpoint",
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              },
+              {
+                "name": "REDIS_PASSWORD",
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "name": "sysdigcloud-config"
+                  }
+                }
+              }
+            ],
+            "image": "foo.io/sysdig/scanning:2304",
+            "imagePullPolicy": "IfNotPresent",
+            "name": "scanning-api",
+            "resources": {
+              "limits": {
+                "cpu": 4,
+                "memory": "4Gi"
+              },
+              "requests": {
+                "cpu": "500m",
+                "memory": "1Gi"
+              }
+            }
+          }
+        ],
+        "imagePullSecrets": [
+          {
+            "name": "sysdigcloud-pull-secret"
+          }
+        ]
+      }
+    }
+  }
+}
+{
+  "apiVersion": "extensions/v1beta1",
+  "kind": "Ingress",
+  "metadata": {
+    "annotations": {
+      "ingress.kubernetes.io/affinity": "cookie",
+      "ingress.kubernetes.io/session-cookie-name": "INGRESSCOOKIEAPI",
+      "kubernetes.io/ingress.class": "haproxy"
+    },
+    "labels": {
+      "app.kubernetes.io/managed-by": "ingress-config",
+      "app.kubernetes.io/name": "ingress-config",
+      "app.kubernetes.io/part-of": "sysdigcloud",
+      "role": "ingress-config",
+      "tier": "infra"
+    },
+    "name": "sysdigcloud-api-ingress",
+    "namespace": "sysdigcloud"
+  },
+  "spec": {
+    "rules": [
+      {
+        "host": "foo.bar.com",
+        "http": {
+          "paths": [
+            {
+              "backend": {
+                "serviceName": "sysdigcloud-api",
+                "servicePort": 8080
+              },
+              "path": "/"
+            },
+            {
+              "backend": {
+                "serviceName": "sysdigcloud-scanning-api",
+                "servicePort": 80
+              },
+              "path": "/api/scanning"
+            }
+          ]
+        }
+      }
+    ],
+    "tls": [
+      {
+        "hosts": [
+          "foo.bar.com"
+        ],
+        "secretName": "sysdigcloud-ssl-secret"
+      }
+    ]
+  }
+}
