@@ -86,6 +86,7 @@ pipeline {
       post {
         cleanup {
           script {
+            sh "cd configurator && make clean || /bin/true"
             sh "docker rmi -f \$(docker images -qa) || /bin/true"
           }
         }
@@ -112,6 +113,7 @@ pipeline {
       post {
         cleanup {
           script {
+            sh "cd configurator && make clean || /bin/true"
             sh("docker rmi -f \$(docker images -qa) || /bin/true")
           }
         }
