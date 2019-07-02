@@ -41,6 +41,7 @@ test_uber_tar: create_uber_tar
 push_uber_tar:
 	docker run --entrypoint /sysdig-chart/airgap.sh --rm \
 		-e VERSION=${VERSION} -e ARTIFACTORY_API_KEY=${ARTIFACTORY_API_KEY} \
+		-e ARTIFACTORY_URL=${ARTIFACTORY_URL} \
 		-v $(MANIFESTS):/manifests -v /var/run/docker.sock:/var/run/docker.sock \
 		$(IMAGE_NAME) push_uber_tar
 
