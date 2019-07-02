@@ -4,7 +4,7 @@ UBER_TAR = "$(MANIFESTS)/uber_archive.tar.gz"
 LOCAL_SCRIPTS := $(shell find $(SOURCEDIR) -name '*.sh' -exec basename {} \;)
 CONTAINER_SCRIPTS := $(addprefix /sysdig-chart/, $(LOCAL_SCRIPTS))
 
-build:
+build: clean
 	docker build . -t $(IMAGE_NAME)
 
 shellcheck:
@@ -25,7 +25,8 @@ create_uber_tar: build shellcheck
 clean:
 	docker run --entrypoint /bin/bash --rm -v \
 		$(MANIFESTS):/manifests $(IMAGE_NAME) \
-		-c "rm -rf /manifests/*; chmod 777 /manifests"
+		-c "rm -rf /manifests/*; chmod 777 /manifests" \
+		|| /bin/true
 
 test: build shellcheck
 	docker run --rm --entrypoint /sysdig-chart/test.sh $(IMAGE_NAME)
