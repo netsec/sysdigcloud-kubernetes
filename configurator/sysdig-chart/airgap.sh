@@ -116,6 +116,11 @@ function push_uber_tar() {
     exit 1
   fi
 
+  if [[ -z ${ARTIFACTORY_URL:-} ]]; then
+    log error "please provide artifactory url as an env var"
+    exit 1
+  fi
+
   if [[ -z ${VERSION:-} ]]; then
     log error "please provide a version env var"
     exit 1
